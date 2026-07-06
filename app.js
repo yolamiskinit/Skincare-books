@@ -555,6 +555,12 @@ function openSettings() {
     <label>Default low stock alert level</label><input type="number" id="s-lowstock" value="${S.settings.lowStock}">
     <button class="btn primary" id="save-settings-btn">Save Settings</button>
 
+    <div class="section-title">Import From Excel</div>
+    <div class="card">
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">One-time import of your products, sales and expenses from your old Excel sheet.</p>
+      <button class="btn primary" id="import-excel-btn">Import My Excel Data</button>
+    </div>
+
     <div class="section-title">Backup &amp; Data</div>
     <div class="card">
       <p style="font-size:12.5px;color:var(--muted);margin-top:0">Your data lives only on this device/browser. Back up regularly and save the file to email, Google Drive or WhatsApp yourself so you never lose it.</p>
@@ -574,6 +580,7 @@ function openSettings() {
     </div>
   `);
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+  document.getElementById('import-excel-btn').addEventListener('click', importExcelData);
   document.getElementById('backup-btn').addEventListener('click', downloadBackup);
   document.getElementById('export-sales-btn').addEventListener('click', exportSalesCSV);
   document.getElementById('restore-file').addEventListener('change', restoreBackup);
@@ -606,6 +613,22 @@ async function downloadBackup() {
   const data = await DB.exportAll();
   downloadFile(`skincare-books-backup-${todayISO()}.json`, JSON.stringify(data, null, 2), 'application/json');
   toast('Backup downloaded');
+}
+
+async function importExcelData() {
+  if (!confirm('Import your products, sales and expenses from your old Excel sheet into the app now?')) return;
+  try {
+    const res = await fetch('excel-import-backup.json');
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+    await DB.importAll(data);
+    toast('Excel data imported');
+    closeSheet();
+    await loadAll();
+    render();
+  } catch (err) {
+    toast('Could not find the Excel import file');
+  }
 }
 
 function restoreBackup(e) {
