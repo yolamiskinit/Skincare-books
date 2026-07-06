@@ -345,8 +345,8 @@ function recalcSaleForm() {
   const fee = Number(document.getElementById('f-fee').value) || 0;
   const cost = Number(document.getElementById('f-cost').value) || 0;
   const shipCost = Number(document.getElementById('f-shipcost').value) || 0;
-  const earned = (sp * qty) + ship - fee;
-  const profit = earned - (cost * qty) - shipCost;
+  const earned = (sp * qty) + ship - fee - shipCost;
+  const profit = earned - (cost * qty);
   document.getElementById('calc-earned').textContent = money(earned);
   document.getElementById('calc-profit').textContent = money(profit);
 }
@@ -364,8 +364,8 @@ async function saveSale(editing) {
   const platformFee = Number(document.getElementById('f-fee').value) || 0;
   const productCost = Number(document.getElementById('f-cost').value) || 0;
   const shippingCost = Number(document.getElementById('f-shipcost').value) || 0;
-  const earned = (sellingPrice * qty) + shippingCharged - platformFee;
-  const profit = earned - (productCost * qty) - shippingCost;
+  const earned = (sellingPrice * qty) + shippingCharged - platformFee - shippingCost;
+  const profit = earned - (productCost * qty);
 
   const sale = {
     id: editing ? editing.id : uid(),
