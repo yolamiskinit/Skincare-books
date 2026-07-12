@@ -561,6 +561,12 @@ function openSettings() {
       <button class="btn primary" id="import-excel-btn">Import My Excel Data</button>
     </div>
 
+    <div class="section-title">Update Stock From Excel</div>
+    <div class="card">
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Refresh stock levels, cost prices and selling prices for your products from your latest Excel sheet. Existing products are matched by name and updated; anything new is added. Sales and expenses are not touched.</p>
+      <button class="btn primary" id="update-stock-btn">Update Stock From Excel</button>
+    </div>
+
     <div class="section-title">Backup &amp; Data</div>
     <div class="card">
       <p style="font-size:12.5px;color:var(--muted);margin-top:0">Your data lives only on this device/browser. Back up regularly and save the file to email, Google Drive or WhatsApp yourself so you never lose it.</p>
@@ -581,6 +587,7 @@ function openSettings() {
   `);
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
   document.getElementById('import-excel-btn').addEventListener('click', importExcelData);
+  document.getElementById('update-stock-btn').addEventListener('click', updateStockFromExcel);
   document.getElementById('backup-btn').addEventListener('click', downloadBackup);
   document.getElementById('export-sales-btn').addEventListener('click', exportSalesCSV);
   document.getElementById('restore-file').addEventListener('change', restoreBackup);
@@ -628,6 +635,37 @@ async function importExcelData() {
     render();
   } catch (err) {
     toast('Could not find the Excel import file');
+  }
+}
+
+async function updateStockFromExcel() {
+  if (!confirm('Update stock levels and prices from your latest Excel sheet now?')) return;
+  try {
+    const res = await fetch('stock-update.json?t=' + Date.now());
+    if (!res.ok) throw new Error('not found');
+    const entries = await res.json();
+    let updated = 0, added = 0;
+    for (const e of entries) {
+      const existing = S.products.find((p) => p.name.trim().toLowerCase() === e.name.trim().toLowerCase());
+      if (existing) {
+        existing.stock = e.stock;
+        existing.costPrice = e.costPrice;
+        existing.sellingPrice = e.sellingPrice;
+        await DB.put('products', existing);
+        updated++;
+      } else {
+        const product = { id: uid(), name: e.name, category: e.category, costPrice: e.costPrice, sellingPrice: e.sellingPrice, stock: e.stock, lowStockThreshold: S.settings.lowStock, createdAt: new Date().toISOString() };
+        await DB.put('products', product);
+        S.products.push(product);
+        added++;
+      }
+    }
+    toast(`Updated ${updated}, added ${added} new products`);
+    closeSheet();
+    await loadAll();
+    render();
+  } catch (err) {
+    toast('Could not find the stock update file');
   }
 }
 

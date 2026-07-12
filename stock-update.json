@@ -1,0 +1,968 @@
+﻿[
+    {
+        "name":  "Face Facts Serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  6.49,
+        "sellingPrice":  9.99,
+        "stock":  12
+    },
+    {
+        "name":  "Bio Oil 25ml",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  7.23,
+        "sellingPrice":  10,
+        "stock":  2
+    },
+    {
+        "name":  "Nineless Kojic Serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  11.95,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "Nineless Niacinamide Serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  11.95,
+        "sellingPrice":  18,
+        "stock":  3
+    },
+    {
+        "name":  "Good Molecules Discoloration Serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  15.15,
+        "sellingPrice":  18.99,
+        "stock":  3
+    },
+    {
+        "name":  "Kojivit Ultra",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  10.71,
+        "sellingPrice":  18.99,
+        "stock":  3
+    },
+    {
+        "name":  "Tretinoin 0.025%",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  7.23,
+        "sellingPrice":  18.99,
+        "stock":  13
+    },
+    {
+        "name":  "Tretinoin 0.05%",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  7.48,
+        "sellingPrice":  19.99,
+        "stock":  12
+    },
+    {
+        "name":  "Faded Tropical",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  18.9,
+        "sellingPrice":  25,
+        "stock":  3
+    },
+    {
+        "name":  "Advance Clinical Serums (mixed)",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  11.7,
+        "sellingPrice":  15,
+        "stock":  4
+    },
+    {
+        "name":  "Tiam Vita B3",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  10.46,
+        "sellingPrice":  16.99,
+        "stock":  3
+    },
+    {
+        "name":  "Demelan Cream",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  10.71,
+        "sellingPrice":  15,
+        "stock":  3
+    },
+    {
+        "name":  "Melanofree 4%",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  7.98,
+        "sellingPrice":  18.99,
+        "stock":  2
+    },
+    {
+        "name":  "Tretinoin 0.01",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  7.73,
+        "sellingPrice":  20,
+        "stock":  12
+    },
+    {
+        "name":  "Melatite hydroquinone",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  10.59,
+        "sellingPrice":  20,
+        "stock":  0
+    },
+    {
+        "name":  "Estelin Serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  6,
+        "sellingPrice":  9,
+        "stock":  12
+    },
+    {
+        "name":  "Azelaic Acid Gel 20%",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  8.1,
+        "sellingPrice":  15.99,
+        "stock":  5
+    },
+    {
+        "name":  "Arbutin Tube",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  8,
+        "sellingPrice":  18,
+        "stock":  5
+    },
+    {
+        "name":  "cosmo alpha arbutin serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  7.81,
+        "sellingPrice":  12.99,
+        "stock":  6
+    },
+    {
+        "name":  "mederma strech mark",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  0,
+        "sellingPrice":  0,
+        "stock":  3
+    },
+    {
+        "name":  "Cotton Wool",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  1.24,
+        "sellingPrice":  3,
+        "stock":  6
+    },
+    {
+        "name":  "cosmo rollon",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  6.29,
+        "sellingPrice":  9.99,
+        "stock":  9
+    },
+    {
+        "name":  "pro lab serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  6.16,
+        "sellingPrice":  9.99,
+        "stock":  12
+    },
+    {
+        "name":  "face facts ceramide serum",
+        "category":  "Serum \u0026 Treatment",
+        "costPrice":  5.65,
+        "sellingPrice":  9,
+        "stock":  12
+    },
+    {
+        "name":  "Medix 5.5 (mixed colors)",
+        "category":  "Lotions",
+        "costPrice":  13.93,
+        "sellingPrice":  18.99,
+        "stock":  4
+    },
+    {
+        "name":  "Advance Clinical Lotion (Vit C, Retinol)",
+        "category":  "Lotions",
+        "costPrice":  13.19,
+        "sellingPrice":  16.99,
+        "stock":  4
+    },
+    {
+        "name":  "Olay Lotion (mixed variants)",
+        "category":  "Lotions",
+        "costPrice":  12.44,
+        "sellingPrice":  18.99,
+        "stock":  10
+    },
+    {
+        "name":  "Amlactin Lotion",
+        "category":  "Lotions",
+        "costPrice":  16.66,
+        "sellingPrice":  32,
+        "stock":  5
+    },
+    {
+        "name":  "Naturium Bio-lipid Lotion",
+        "category":  "Lotions",
+        "costPrice":  23.86,
+        "sellingPrice":  27,
+        "stock":  3
+    },
+    {
+        "name":  "EOS Body Lotion",
+        "category":  "Lotions",
+        "costPrice":  14.18,
+        "sellingPrice":  18,
+        "stock":  6
+    },
+    {
+        "name":  "Cetaphil moisturizing lotion",
+        "category":  "Lotions",
+        "costPrice":  14.93,
+        "sellingPrice":  20,
+        "stock":  3
+    },
+    {
+        "name":  "Eucerin Intensive Repair",
+        "category":  "Lotions",
+        "costPrice":  24.85,
+        "sellingPrice":  18,
+        "stock":  4
+    },
+    {
+        "name":  "Skin by Zaron Lotion",
+        "category":  "Lotions",
+        "costPrice":  13.63,
+        "sellingPrice":  19.99,
+        "stock":  3
+    },
+    {
+        "name":  "Advance Korean Lotion",
+        "category":  "Lotions",
+        "costPrice":  11.54,
+        "sellingPrice":  16.99,
+        "stock":  2
+    },
+    {
+        "name":  "Advance Korean Oil",
+        "category":  "Lotions",
+        "costPrice":  9.22,
+        "sellingPrice":  12.99,
+        "stock":  1
+    },
+    {
+        "name":  "Aqua Rich Body Lotion",
+        "category":  "Lotions",
+        "costPrice":  9.47,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "Hada Labo Premium Lotion",
+        "category":  "Lotions",
+        "costPrice":  12.69,
+        "sellingPrice":  15,
+        "stock":  3
+    },
+    {
+        "name":  "Dr Teals Lotion",
+        "category":  "Lotions",
+        "costPrice":  8.97,
+        "sellingPrice":  14,
+        "stock":  3
+    },
+    {
+        "name":  "Face Facts Lotion",
+        "category":  "Lotions",
+        "costPrice":  8.23,
+        "sellingPrice":  15,
+        "stock":  6
+    },
+    {
+        "name":  "Alpha Body Lotion 340G",
+        "category":  "Lotions",
+        "costPrice":  15,
+        "sellingPrice":  21.99,
+        "stock":  6
+    },
+    {
+        "name":  "Dr Teals Body Oil 260ML",
+        "category":  "Lotions",
+        "costPrice":  8.35,
+        "sellingPrice":  15,
+        "stock":  3
+    },
+    {
+        "name":  "Skin by Zaron Body Oil",
+        "category":  "Lotions",
+        "costPrice":  10.8,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "Snapchat Body Lotion",
+        "category":  "Lotions",
+        "costPrice":  19,
+        "sellingPrice":  28,
+        "stock":  3
+    },
+    {
+        "name":  "Aqua Rich Body Oil",
+        "category":  "Lotions",
+        "costPrice":  9.33,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "Pro Lab",
+        "category":  "Lotions",
+        "costPrice":  8.06,
+        "sellingPrice":  17.99,
+        "stock":  3
+    },
+    {
+        "name":  "Glow Influence Lotion",
+        "category":  "Lotions",
+        "costPrice":  19.71,
+        "sellingPrice":  30.99,
+        "stock":  6
+    },
+    {
+        "name":  "Healthy Glow lotion",
+        "category":  "Lotions",
+        "costPrice":  9.01,
+        "sellingPrice":  19.99,
+        "stock":  6
+    },
+    {
+        "name":  "Glow booster oil",
+        "category":  "Lotions",
+        "costPrice":  7.43,
+        "sellingPrice":  13.99,
+        "stock":  6
+    },
+    {
+        "name":  "Am glow lotion",
+        "category":  "Lotions",
+        "costPrice":  10.59,
+        "sellingPrice":  19.99,
+        "stock":  6
+    },
+    {
+        "name":  "sk body oil",
+        "category":  "Lotions",
+        "costPrice":  7.43,
+        "sellingPrice":  14.99,
+        "stock":  12
+    },
+    {
+        "name":  "extreme glow lotion",
+        "category":  "Lotions",
+        "costPrice":  9.08,
+        "sellingPrice":  17.99,
+        "stock":  6
+    },
+    {
+        "name":  "Olay super serum",
+        "category":  "Lotions",
+        "costPrice":  15.92,
+        "sellingPrice":  22,
+        "stock":  3
+    },
+    {
+        "name":  "Advance Face Cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  9.83,
+        "sellingPrice":  13.99,
+        "stock":  12
+    },
+    {
+        "name":  "Touch Bright Cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  18.95,
+        "sellingPrice":  28.99,
+        "stock":  2
+    },
+    {
+        "name":  "Skeen Point Face Cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  9.47,
+        "sellingPrice":  14.99,
+        "stock":  4
+    },
+    {
+        "name":  "Face Facts Face Cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  8.47,
+        "sellingPrice":  13.99,
+        "stock":  3
+    },
+    {
+        "name":  "face facts wonder cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  7.9,
+        "sellingPrice":  10.99,
+        "stock":  6
+    },
+    {
+        "name":  "Gluthathione Vitamin C",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  12,
+        "sellingPrice":  18.99,
+        "stock":  3
+    },
+    {
+        "name":  "aqua rich face cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  9.33,
+        "sellingPrice":  14.99,
+        "stock":  6
+    },
+    {
+        "name":  "healthy glow face cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  6.16,
+        "sellingPrice":  14.99,
+        "stock":  6
+    },
+    {
+        "name":  "flawless face cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  7.13,
+        "sellingPrice":  17,
+        "stock":  3
+    },
+    {
+        "name":  "new experience face cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  11,
+        "sellingPrice":  15,
+        "stock":  6
+    },
+    {
+        "name":  "pro lab face cream",
+        "category":  "Face Moisturizers \u0026 Cream",
+        "costPrice":  6.79,
+        "sellingPrice":  15.99,
+        "stock":  6
+    },
+    {
+        "name":  "Simple refreshing Face Wash",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  7.23,
+        "sellingPrice":  9.99,
+        "stock":  3
+    },
+    {
+        "name":  "Tiam Mist Toner",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  11.2,
+        "sellingPrice":  15,
+        "stock":  3
+    },
+    {
+        "name":  "Tiam Essence",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  10.71,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "Good Molecules Toner 30ml",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  10.46,
+        "sellingPrice":  15.99,
+        "stock":  2
+    },
+    {
+        "name":  "Good Molecules Toner 120ml",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  14.68,
+        "sellingPrice":  20,
+        "stock":  2
+    },
+    {
+        "name":  "Acwell Toner",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  12.87,
+        "sellingPrice":  16,
+        "stock":  6
+    },
+    {
+        "name":  "Face Facts foaming Cleanser",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  7.98,
+        "sellingPrice":  12,
+        "stock":  3
+    },
+    {
+        "name":  "Cerave Hydrating Cleanser",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  15.92,
+        "sellingPrice":  21.99,
+        "stock":  3
+    },
+    {
+        "name":  "PanOxyl Acne Wash",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  12.94,
+        "sellingPrice":  17.99,
+        "stock":  6
+    },
+    {
+        "name":  "Skin by Zaron Face Wash (Acne)",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  9.71,
+        "sellingPrice":  15.99,
+        "stock":  3
+    },
+    {
+        "name":  "Skin by Zaron Face Wash (Exfoliating)",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  9.71,
+        "sellingPrice":  15.99,
+        "stock":  3
+    },
+    {
+        "name":  "Skin by Zaron Toner",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  10.21,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "Advance Korean Toner",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  9.62,
+        "sellingPrice":  14,
+        "stock":  4
+    },
+    {
+        "name":  "Advance Korean Face Wash",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  8.23,
+        "sellingPrice":  12.99,
+        "stock":  6
+    },
+    {
+        "name":  "Face Facts hydrating Cleanser",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  7.98,
+        "sellingPrice":  12,
+        "stock":  3
+    },
+    {
+        "name":  "Gold carvier face wash yc",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  7.5,
+        "sellingPrice":  10.99,
+        "stock":  3
+    },
+    {
+        "name":  "cosmos face wash",
+        "category":  "Facial Wash, Toner \u0026 Cleanser",
+        "costPrice":  6.16,
+        "sellingPrice":  10,
+        "stock":  6
+    },
+    {
+        "name":  "EOS Body Wash",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  14.93,
+        "sellingPrice":  19,
+        "stock":  3
+    },
+    {
+        "name":  "Medix 5.5 Body Wash vitamin c",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  13.93,
+        "sellingPrice":  18.99,
+        "stock":  3
+    },
+    {
+        "name":  "Alada",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  8.97,
+        "sellingPrice":  12,
+        "stock":  3
+    },
+    {
+        "name":  "Olay Shower Gel",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  12.44,
+        "sellingPrice":  19.99,
+        "stock":  6
+    },
+    {
+        "name":  "Advance Korean Shower Gel",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  10.97,
+        "sellingPrice":  19.99,
+        "stock":  4
+    },
+    {
+        "name":  "Alpha Arbutin Soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  6.49,
+        "sellingPrice":  8,
+        "stock":  6
+    },
+    {
+        "name":  "Dove 4 in 1 Bar Soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  7.23,
+        "sellingPrice":  12.99,
+        "stock":  6
+    },
+    {
+        "name":  "Skeenpoint Body Wash",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  9.47,
+        "sellingPrice":  15.99,
+        "stock":  4
+    },
+    {
+        "name":  "Nano Bar Soap Pack",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  9.96,
+        "sellingPrice":  12.99,
+        "stock":  1
+    },
+    {
+        "name":  "Dr Teals Wash",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  9.22,
+        "sellingPrice":  12.99,
+        "stock":  3
+    },
+    {
+        "name":  "Skin by Zaron body Wash",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  11.35,
+        "sellingPrice":  18.99,
+        "stock":  12
+    },
+    {
+        "name":  "SK Shower gel",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  9,
+        "sellingPrice":  17.99,
+        "stock":  2
+    },
+    {
+        "name":  "Cm shower",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  11,
+        "sellingPrice":  20,
+        "stock":  1
+    },
+    {
+        "name":  "Extract Whitening Bar Soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  5,
+        "sellingPrice":  8.99,
+        "stock":  12
+    },
+    {
+        "name":  "Alpha Body Wash",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  12,
+        "sellingPrice":  19.99,
+        "stock":  6
+    },
+    {
+        "name":  "Good Molecules Brightening bar soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  12,
+        "sellingPrice":  18,
+        "stock":  3
+    },
+    {
+        "name":  "TOKE BLACK Soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  7.01,
+        "sellingPrice":  12,
+        "stock":  2
+    },
+    {
+        "name":  "Anti pimples soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  5.2,
+        "sellingPrice":  7.99,
+        "stock":  12
+    },
+    {
+        "name":  "Drip kojic soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  6.04,
+        "sellingPrice":  9,
+        "stock":  6
+    },
+    {
+        "name":  "glow influnce soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  12.12,
+        "sellingPrice":  15.99,
+        "stock":  12
+    },
+    {
+        "name":  "healthy glow soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  5.53,
+        "sellingPrice":  9,
+        "stock":  6
+    },
+    {
+        "name":  "cosmos shower gel",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  8.38,
+        "sellingPrice":  15.99,
+        "stock":  12
+    },
+    {
+        "name":  "golden glow soap",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  9.33,
+        "sellingPrice":  20,
+        "stock":  12
+    },
+    {
+        "name":  "glutha white bath",
+        "category":  "Shower Gel \u0026 Soap",
+        "costPrice":  9.33,
+        "sellingPrice":  18.99,
+        "stock":  12
+    },
+    {
+        "name":  "Kuu Spa Salt",
+        "category":  "Scrub, Mask \u0026 Exfoliate",
+        "costPrice":  6.74,
+        "sellingPrice":  9.99,
+        "stock":  3
+    },
+    {
+        "name":  "Dr Teals Scrub",
+        "category":  "Scrub, Mask \u0026 Exfoliate",
+        "costPrice":  10.21,
+        "sellingPrice":  14,
+        "stock":  3
+    },
+    {
+        "name":  "Dr Meinaier Scrub",
+        "category":  "Scrub, Mask \u0026 Exfoliate",
+        "costPrice":  6.74,
+        "sellingPrice":  11,
+        "stock":  4
+    },
+    {
+        "name":  "Tree Hut Scrub",
+        "category":  "Scrub, Mask \u0026 Exfoliate",
+        "costPrice":  13.93,
+        "sellingPrice":  17.99,
+        "stock":  2
+    },
+    {
+        "name":  "Aqua Sunscreen",
+        "category":  "Sunscreen",
+        "costPrice":  11.7,
+        "sellingPrice":  17,
+        "stock":  3
+    },
+    {
+        "name":  "Biore UV",
+        "category":  "Sunscreen",
+        "costPrice":  6.49,
+        "sellingPrice":  11.99,
+        "stock":  3
+    },
+    {
+        "name":  "COSRX - Salicylic Acid Daily Gentle Cleanser, 150ml",
+        "category":  "Belgium Goods",
+        "costPrice":  8.79,
+        "sellingPrice":  13.99,
+        "stock":  3
+    },
+    {
+        "name":  "COSRX - Hyaluronic Acid Intensive Cream, 100ml",
+        "category":  "Belgium Goods",
+        "costPrice":  13.68,
+        "sellingPrice":  16.99,
+        "stock":  3
+    },
+    {
+        "name":  "Celimax - Retinal Shot Tightening Booster, 15ml",
+        "category":  "Belgium Goods",
+        "costPrice":  13.79,
+        "sellingPrice":  16,
+        "stock":  3
+    },
+    {
+        "name":  "APRILSKIN - TXA Niacinamide 99 Night Wrapping Mask, 80ml",
+        "category":  "Belgium Goods",
+        "costPrice":  14.27,
+        "sellingPrice":  17,
+        "stock":  3
+    },
+    {
+        "name":  "SOME BY MI - Real Snail Skin Barrier Care Mask",
+        "category":  "Belgium Goods",
+        "costPrice":  2.19,
+        "sellingPrice":  3.99,
+        "stock":  6
+    },
+    {
+        "name":  "Dr. Althea - Jelly Seal Repair Mask, 28g",
+        "category":  "Belgium Goods",
+        "costPrice":  4.9,
+        "sellingPrice":  6.99,
+        "stock":  3
+    },
+    {
+        "name":  "Farmstay – Real Oatmeal Essence Mask, 23ml",
+        "category":  "Belgium Goods",
+        "costPrice":  1.47,
+        "sellingPrice":  3.99,
+        "stock":  3
+    },
+    {
+        "name":  "APLB - Retinol Vitamin C Vitamin E Ampoule Serum, 40ml",
+        "category":  "Belgium Goods",
+        "costPrice":  9.52,
+        "sellingPrice":  15,
+        "stock":  3
+    },
+    {
+        "name":  "COSRX - Low-pH Good Morning Cleanser, 150ml",
+        "category":  "Belgium Goods",
+        "costPrice":  9.29,
+        "sellingPrice":  14,
+        "stock":  3
+    },
+    {
+        "name":  "Cos de BAHA - Retinol Serum (RS), 30ml",
+        "category":  "Belgium Goods",
+        "costPrice":  11.3,
+        "sellingPrice":  14.9,
+        "stock":  2
+    },
+    {
+        "name":  "Cos de BAHA - A5 Azelaic Acid 5 Serum, 30ml",
+        "category":  "Belgium Goods",
+        "costPrice":  11.18,
+        "sellingPrice":  14.99,
+        "stock":  3
+    },
+    {
+        "name":  "SOME BY MI - Real Glutathione Brightening Care Mask",
+        "category":  "Belgium Goods",
+        "costPrice":  4.19,
+        "sellingPrice":  3.99,
+        "stock":  3
+    },
+    {
+        "name":  "SOME BY MI - Retinol Intense Reactivating Mask",
+        "category":  "Belgium Goods",
+        "costPrice":  4.07,
+        "sellingPrice":  3.99,
+        "stock":  3
+    },
+    {
+        "name":  "Product Samples 2ml",
+        "category":  "Belgium Goods",
+        "costPrice":  3.71,
+        "sellingPrice":  0,
+        "stock":  1
+    },
+    {
+        "name":  "NINE LESS - A-Control Azelaic Acid Toner 150ml",
+        "category":  "Belgium Goods",
+        "costPrice":  11.9,
+        "sellingPrice":  15.99,
+        "stock":  3
+    },
+    {
+        "name":  "Anua - Azelaic Acid 3 Cica Skin Clarifying Toner, 250ml",
+        "category":  "Belgium Goods",
+        "costPrice":  17.71,
+        "sellingPrice":  21,
+        "stock":  3
+    },
+    {
+        "name":  "TIA\u0027M - Snail \u0026 Azulene Low pH Cleanser, 200ml",
+        "category":  "Belgium Goods",
+        "costPrice":  12.99,
+        "sellingPrice":  18.99,
+        "stock":  3
+    },
+    {
+        "name":  "Medicube - Collagen Night Wrapping Mask, 75ml",
+        "category":  "Belgium Goods",
+        "costPrice":  17.83,
+        "sellingPrice":  20.99,
+        "stock":  3
+    },
+    {
+        "name":  "Haruharu Wonder - Black Rice Hyaluronic Toner for Sensitive Skin, 150ml",
+        "category":  "Belgium Goods",
+        "costPrice":  10.71,
+        "sellingPrice":  15.99,
+        "stock":  3
+    },
+    {
+        "name":  "Abib - Glutathiosome Dark Spot Toner Skin Booster, 200ml",
+        "category":  "Belgium Goods",
+        "costPrice":  14.27,
+        "sellingPrice":  20,
+        "stock":  2
+    },
+    {
+        "name":  "Beauty of Joseon - Relief Sun Aqua-Fresh Rice + B5 SPF50+",
+        "category":  "Belgium Goods",
+        "costPrice":  12.96,
+        "sellingPrice":  17,
+        "stock":  3
+    },
+    {
+        "name":  "Anua - Rice 70 Glow Milky Toner, 250ml",
+        "category":  "Belgium Goods",
+        "costPrice":  17.23,
+        "sellingPrice":  20.99,
+        "stock":  4
+    },
+    {
+        "name":  "Anua - Heartleaf Silky Moisture Sun Cream SPF50+",
+        "category":  "Belgium Goods",
+        "costPrice":  14.27,
+        "sellingPrice":  18,
+        "stock":  4
+    },
+    {
+        "name":  "Anua - Heartleaf Quercetinol Pore Deep Cleansing Foam, 150ml",
+        "category":  "Belgium Goods",
+        "costPrice":  11.18,
+        "sellingPrice":  16,
+        "stock":  3
+    },
+    {
+        "name":  "Anua - Centella Red Spot Cream, 30ml",
+        "category":  "Belgium Goods",
+        "costPrice":  13.56,
+        "sellingPrice":  16.99,
+        "stock":  2
+    },
+    {
+        "name":  "Anua - 7 Rice Ceramide Hydrating Barrier Serum, 50ml",
+        "category":  "Belgium Goods",
+        "costPrice":  17.23,
+        "sellingPrice":  21,
+        "stock":  2
+    },
+    {
+        "name":  "Cos de BAHA - Tranexamic Acid Niacinamide (TN), 30ml",
+        "category":  "Belgium Goods",
+        "costPrice":  12.13,
+        "sellingPrice":  16,
+        "stock":  2
+    },
+    {
+        "name":  "APRILSKIN - Carrotene IPMP Clearing Solution, 20ml",
+        "category":  "Belgium Goods",
+        "costPrice":  13.44,
+        "sellingPrice":  18.99,
+        "stock":  2
+    }
+]
