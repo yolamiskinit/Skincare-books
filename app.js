@@ -9,6 +9,7 @@ const S = {
   products: [],
   sales: [],
   expenses: [],
+  customers: [],
   settings: { currency: '£', businessName: 'My Skincare Books', lowStock: 3 },
   salesFilter: 'all',
   salesSearch: '',
@@ -20,6 +21,7 @@ const S = {
   expSearch: '',
   expCategoryFilter: 'All',
   expFrequencyFilter: 'All',
+  custSearch: '',
   reportRange: 'month'
 };
 
@@ -45,12 +47,13 @@ function inRange(dateStr, start, end) { return dateStr >= start && dateStr <= en
 
 /* ---------- Data load ---------- */
 async function loadAll() {
-  const [products, sales, expenses, metaRows] = await Promise.all([
-    DB.getAll('products'), DB.getAll('sales'), DB.getAll('expenses'), DB.getAll('meta')
+  const [products, sales, expenses, metaRows, customers] = await Promise.all([
+    DB.getAll('products'), DB.getAll('sales'), DB.getAll('expenses'), DB.getAll('meta'), DB.getAll('customers')
   ]);
   S.products = products.sort((a, b) => a.name.localeCompare(b.name));
   S.sales = sales.sort((a, b) => (b.date + (b.createdAt||'')).localeCompare(a.date + (a.createdAt||'')));
   S.expenses = expenses.sort((a, b) => b.date.localeCompare(a.date));
+  S.customers = customers.sort((a, b) => a.name.localeCompare(b.name));
   const meta = {}; metaRows.forEach((m) => meta[m.key] = m.value);
   if (meta.currency) S.settings.currency = meta.currency;
   if (meta.businessName) S.settings.businessName = meta.businessName;
@@ -67,6 +70,7 @@ function setTab(tab) {
   if (tab === 'sales') { fab.style.display = 'flex'; fab.onclick = () => openSaleForm(); }
   else if (tab === 'inventory') { fab.style.display = 'flex'; fab.onclick = () => openProductForm(); }
   else if (tab === 'expenses') { fab.style.display = 'flex'; fab.onclick = () => openExpenseForm(); }
+  else if (tab === 'customers') { fab.style.display = 'flex'; fab.onclick = () => openCustomerForm(); }
   else { fab.style.display = 'none'; }
   render();
 }
@@ -79,6 +83,7 @@ function render() {
   else if (S.tab === 'sales') main.innerHTML = renderSales();
   else if (S.tab === 'inventory') main.innerHTML = renderInventory();
   else if (S.tab === 'expenses') main.innerHTML = renderExpenses();
+  else if (S.tab === 'customers') main.innerHTML = renderCustomers();
   else if (S.tab === 'reports') main.innerHTML = renderReports();
   bindTabEvents();
 }
@@ -330,12 +335,141 @@ function openExpensesFilterSheet() {
   });
 }
 
+/* ---------- CUSTOMERS ---------- */
+function getCustomerStats() {
+  const map = {};
+  S.sales.forEach((s) => {
+    const name = (s.customer || '').trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!map[key]) map[key] = { name, totalSpent: 0, totalProfit: 0, orderCount: 0, lastOrderDate: '' };
+    map[key].totalSpent += s.earned;
+    map[key].totalProfit += s.profit;
+    map[key].orderCount += 1;
+    if (!map[key].lastOrderDate || s.date > map[key].lastOrderDate) map[key].lastOrderDate = s.date;
+  });
+  return Object.values(map).map((c) => {
+    const record = S.customers.find((cc) => cc.name.trim().toLowerCase() === c.name.toLowerCase());
+    return { ...c, id: record ? record.id : null, phone: record ? record.phone : '', notes: record ? record.notes : '' };
+  }).sort((a, b) => b.totalSpent - a.totalSpent);
+}
+function getFilteredCustomerStats() {
+  let list = getCustomerStats();
+  const q = S.custSearch.trim().toLowerCase();
+  if (q) list = list.filter((c) => c.name.toLowerCase().includes(q));
+  return list;
+}
+function customerRowsHtml(list) {
+  const rows = list.map((c) => `
+    <div class="row" data-customer="${esc(c.name)}" style="cursor:pointer">
+      <div class="row-main">
+        <div class="row-title">${esc(c.name)}</div>
+        <div class="row-sub">${c.orderCount} order(s) &middot; last ${fmtDate(c.lastOrderDate)}</div>
+      </div>
+      <div class="row-end"><div class="row-amount pink">${money(c.totalSpent)}</div></div>
+    </div>`).join('');
+  return rows || emptyState('No customers yet', 'Customers appear automatically the first time you log a sale for them');
+}
+function refreshCustomersList() {
+  document.getElementById('customers-list').innerHTML = customerRowsHtml(getFilteredCustomerStats());
+  bindCustomerRowClicks();
+}
+function bindCustomerRowClicks() {
+  document.querySelectorAll('[data-customer]').forEach((el) => el.addEventListener('click', () => openCustomerForm(el.dataset.customer)));
+}
+function renderCustomers() {
+  return `
+    <div class="search-row">
+      <input type="text" id="customers-search" placeholder="Search customers..." value="${esc(S.custSearch)}">
+    </div>
+    <div class="card" id="customers-list">${customerRowsHtml(getFilteredCustomerStats())}</div>
+  `;
+}
+function openCustomerForm(name) {
+  const stats = name ? getCustomerStats().find((c) => c.name === name) : null;
+  const record = name ? S.customers.find((c) => c.name.trim().toLowerCase() === name.toLowerCase()) : null;
+  const custSales = name ? S.sales.filter((s) => (s.customer || '').trim().toLowerCase() === name.toLowerCase()).sort((a, b) => b.date.localeCompare(a.date)) : [];
+
+  openSheet(name ? 'Customer' : 'Add Customer', `
+    <label>Name</label><input type="text" id="c-name" value="${esc((record && record.name) || name || '')}">
+    <label>Phone</label><input type="text" id="c-phone" value="${esc((record && record.phone) || '')}">
+    <label>Notes</label><textarea id="c-notes">${esc((record && record.notes) || '')}</textarea>
+
+    ${stats ? `
+    <div class="customer-stat-row">
+      <div class="item"><div class="lab">ORDERS</div><div class="val">${stats.orderCount}</div></div>
+      <div class="item"><div class="lab">TOTAL SPENT</div><div class="val">${money(stats.totalSpent)}</div></div>
+      <div class="item"><div class="lab">LAST ORDER</div><div class="val">${fmtDate(stats.lastOrderDate)}</div></div>
+    </div>` : ''}
+
+    <button class="btn primary" id="save-customer-btn">Save</button>
+    ${name ? '<button class="btn secondary" id="new-sale-for-customer-btn">+ New Sale for this Customer</button>' : ''}
+    ${record ? '<button class="btn danger" id="delete-customer-btn">Delete Customer Record</button>' : ''}
+
+    ${custSales.length ? `<div class="section-title">Order History</div>${custSales.map((s) => `
+      <div class="row"><div class="row-main"><div class="row-title">${esc(s.productName)}</div><div class="row-sub">${fmtDate(s.date)} &middot; Qty ${s.qty}</div></div>
+      <div class="row-end"><div class="row-amount">${money(s.earned)}</div></div></div>`).join('')}` : ''}
+  `);
+
+  document.getElementById('save-customer-btn').addEventListener('click', () => saveCustomer(record));
+  if (name) document.getElementById('new-sale-for-customer-btn').addEventListener('click', () => {
+    closeSheet();
+    openSaleForm();
+    document.getElementById('f-customer').value = name;
+  });
+  if (record) document.getElementById('delete-customer-btn').addEventListener('click', () => deleteCustomer(record));
+}
+async function saveCustomer(record) {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) { toast('Please enter a name'); return; }
+  const customer = {
+    id: record ? record.id : uid(),
+    name,
+    phone: document.getElementById('c-phone').value.trim(),
+    notes: document.getElementById('c-notes').value.trim(),
+    createdAt: record ? record.createdAt : new Date().toISOString()
+  };
+  await DB.put('customers', customer);
+  closeSheet();
+  toast('Customer saved');
+  await loadAll();
+  render();
+}
+async function deleteCustomer(record) {
+  if (!confirm(`Delete saved contact info for "${record.name}"? Their past sales history will remain untouched.`)) return;
+  await DB.delete('customers', record.id);
+  closeSheet();
+  toast('Customer record deleted');
+  await loadAll();
+  render();
+}
+
 /* ---------- REPORTS ---------- */
 function reportRangeBounds() {
   if (S.reportRange === 'month') return monthBounds(0);
   if (S.reportRange === 'lastmonth') return monthBounds(-1);
   if (S.reportRange === 'year') return yearBounds();
   return { start: '0000-01-01', end: '9999-12-31' };
+}
+function barChartHtml(items) {
+  if (!items.length) return emptyState('No data yet', '');
+  const max = Math.max(1, ...items.map((i) => Math.abs(i.value)));
+  return items.map((i) => `
+    <div class="bar-row">
+      <div class="bar-label">${esc(i.label)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, (Math.abs(i.value) / max) * 100)}%"></div></div>
+      <div class="bar-value">${money(i.value)}</div>
+    </div>`).join('');
+}
+function monthlyRevenueTrend(months) {
+  const result = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const { start, end } = monthBounds(-i);
+    const label = new Date(start + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' });
+    const total = S.sales.filter((s) => inRange(s.date, start, end)).reduce((a, s) => a + s.earned, 0);
+    result.push({ label, value: total });
+  }
+  return result;
 }
 function renderReports() {
   const { start, end } = reportRangeBounds();
@@ -372,6 +506,16 @@ function renderReports() {
       <div class="stat-box"><div class="label">Net Profit</div><div class="value ${net>=0?'green':'red'}">${money(net)}</div></div>
     </div>
 
+    <div class="chart-card">
+      <h3>Revenue Trend (Last 6 Months)</h3>
+      ${barChartHtml(monthlyRevenueTrend(6))}
+    </div>
+
+    <div class="chart-card">
+      <h3>Revenue By Platform</h3>
+      ${barChartHtml(Object.entries(byPlatform).map(([k, v]) => ({ label: k, value: v.revenue })).sort((a, b) => b.value - a.value))}
+    </div>
+
     <div class="section-title">By Platform</div>
     <div class="card">${Object.keys(byPlatform).length ? Object.entries(byPlatform).map(([k, v]) => `
       <div class="row"><div class="row-main"><div class="row-title">${esc(k)}</div><div class="row-sub">${v.count} sale(s)</div></div>
@@ -395,6 +539,7 @@ function bindTabEvents() {
   bindSalesRowClicks();
   bindInventoryRowClicks();
   bindExpenseRowClicks();
+  bindCustomerRowClicks();
   document.querySelectorAll('[data-sfilter]').forEach((el) => el.addEventListener('click', () => { S.salesFilter = el.dataset.sfilter; render(); }));
   document.querySelectorAll('[data-cat]').forEach((el) => el.addEventListener('click', () => { S.invCategory = el.dataset.cat; render(); }));
   document.querySelectorAll('[data-range]').forEach((el) => el.addEventListener('click', () => { S.reportRange = el.dataset.range; render(); }));
@@ -413,6 +558,9 @@ function bindTabEvents() {
   if (expSearch) expSearch.addEventListener('input', () => { S.expSearch = expSearch.value; refreshExpensesList(); });
   const expFilterBtn = document.getElementById('expenses-filter-btn');
   if (expFilterBtn) expFilterBtn.addEventListener('click', openExpensesFilterSheet);
+
+  const custSearch = document.getElementById('customers-search');
+  if (custSearch) custSearch.addEventListener('input', () => { S.custSearch = custSearch.value; refreshCustomersList(); });
 }
 
 /* ---------- Modal sheet helper ---------- */
@@ -440,7 +588,8 @@ function openSaleForm(saleId) {
     <label>Date</label><input type="date" id="f-date" value="${editing ? editing.date : todayISO()}">
     <label>Platform</label><select id="f-platform">${platformOptions}</select>
     <div class="field-row">
-      <div><label>Customer name</label><input type="text" id="f-customer" placeholder="e.g. Sue" value="${editing ? esc(editing.customer) : ''}"></div>
+      <div><label>Customer name</label><input type="text" id="f-customer" list="customer-datalist" placeholder="e.g. Sue" value="${editing ? esc(editing.customer) : ''}">
+      <datalist id="customer-datalist">${S.customers.map((c) => `<option value="${esc(c.name)}">`).join('')}</datalist></div>
       <div><label>Order No (optional)</label><input type="text" id="f-orderno" value="${editing ? esc(editing.orderNo || '') : ''}"></div>
     </div>
     <label>Product</label>
@@ -470,6 +619,7 @@ function openSaleForm(saleId) {
     </div>
 
     <button class="btn primary" id="save-sale-btn">${editing ? 'Save Changes' : 'Save Sale'}</button>
+    ${editing ? '<button class="btn secondary" id="share-receipt-btn">Share Receipt</button>' : ''}
     ${editing ? '<button class="btn danger" id="delete-sale-btn">Delete Sale</button>' : ''}
   `);
 
@@ -484,6 +634,34 @@ function openSaleForm(saleId) {
 
   document.getElementById('save-sale-btn').addEventListener('click', () => saveSale(editing));
   if (editing) document.getElementById('delete-sale-btn').addEventListener('click', () => deleteSale(editing));
+  if (editing) document.getElementById('share-receipt-btn').addEventListener('click', () => shareReceipt(editing));
+}
+
+async function shareReceipt(sale) {
+  const total = (Number(sale.sellingPrice) * Number(sale.qty)) + Number(sale.shippingCharged || 0);
+  const lines = [
+    S.settings.businessName,
+    '------------------------------',
+    `Date: ${fmtDate(sale.date)}`,
+    sale.customer ? `Customer: ${sale.customer}` : null,
+    `Item: ${sale.productName} x${sale.qty}`,
+    `Price: ${money(sale.sellingPrice)} each`,
+    sale.shippingCharged ? `Shipping: ${money(sale.shippingCharged)}` : null,
+    `Total: ${money(total)}`,
+    `Payment: ${sale.paymentStatus}`,
+    '------------------------------',
+    'Thank you for your order!'
+  ].filter(Boolean);
+  const text = lines.join('\n');
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch (err) { /* user cancelled or unsupported, fall through */ }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Receipt copied — paste it to send');
+  } catch (err) {
+    prompt('Copy this receipt:', text);
+  }
 }
 
 function recalcSaleForm() {
@@ -539,6 +717,12 @@ async function saveSale(editing) {
   }
 
   await DB.put('sales', sale);
+  if (sale.customer) {
+    const existingCust = S.customers.find((c) => c.name.trim().toLowerCase() === sale.customer.toLowerCase());
+    if (!existingCust) {
+      await DB.put('customers', { id: uid(), name: sale.customer, phone: '', notes: '', createdAt: new Date().toISOString() });
+    }
+  }
   closeSheet();
   toast(editing ? 'Sale updated' : 'Sale logged');
   await loadAll();
@@ -721,6 +905,8 @@ function openSettings() {
       <button class="btn secondary" id="backup-btn">Download Full Backup</button>
       <label>Restore from backup file</label><input type="file" id="restore-file" accept=".json">
       <button class="btn secondary" id="export-sales-btn">Export Sales as CSV (Excel)</button>
+      <button class="btn secondary" id="export-stock-btn">Export Stock as CSV (Excel)</button>
+      <button class="btn secondary" id="export-expenses-btn">Export Expenses as CSV (Excel)</button>
     </div>
 
     <div class="section-title">Danger Zone</div>
@@ -738,6 +924,8 @@ function openSettings() {
   document.getElementById('update-stock-btn').addEventListener('click', updateStockFromExcel);
   document.getElementById('backup-btn').addEventListener('click', downloadBackup);
   document.getElementById('export-sales-btn').addEventListener('click', exportSalesCSV);
+  document.getElementById('export-stock-btn').addEventListener('click', exportProductsCSV);
+  document.getElementById('export-expenses-btn').addEventListener('click', exportExpensesCSV);
   document.getElementById('restore-file').addEventListener('change', restoreBackup);
   document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
 }
@@ -835,12 +1023,26 @@ function restoreBackup(e) {
   reader.readAsText(file);
 }
 
+function csvFromRows(headers, rows) {
+  return [headers, ...rows].map((r) => r.map((v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+}
 function exportSalesCSV() {
   const headers = ['Date','Platform','Customer','Order No','Product','Qty','Selling Price','Shipping Charged','Platform Fee','Product Cost','Shipping Cost','Earned','Profit','Payment Status','Payment Date','Notes'];
   const rows = S.sales.map((s) => [s.date, s.platform, s.customer, s.orderNo, s.productName, s.qty, s.sellingPrice, s.shippingCharged, s.platformFee, s.productCost, s.shippingCost, s.earned.toFixed(2), s.profit.toFixed(2), s.paymentStatus, s.paymentDate, s.notes]);
-  const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  downloadFile(`sales-export-${todayISO()}.csv`, csv, 'text/csv');
+  downloadFile(`sales-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
   toast('Sales exported');
+}
+function exportProductsCSV() {
+  const headers = ['Name','Category','Cost Price','Selling Price','Stock','Low Stock Alert'];
+  const rows = S.products.map((p) => [p.name, p.category, p.costPrice, p.sellingPrice, p.stock, p.lowStockThreshold]);
+  downloadFile(`stock-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
+  toast('Stock exported');
+}
+function exportExpensesCSV() {
+  const headers = ['Date','Name','Category','Amount','Frequency','Notes'];
+  const rows = S.expenses.map((e) => [e.date, e.name, e.category, e.amount, e.frequency, e.notes]);
+  downloadFile(`expenses-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
+  toast('Expenses exported');
 }
 
 async function clearAllData() {

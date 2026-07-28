@@ -1,5 +1,5 @@
 const DB_NAME = 'skincareBooksDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let dbInstance = null;
 
 function openDB() {
@@ -21,6 +21,10 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('meta')) {
         db.createObjectStore('meta', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('customers')) {
+        const store = db.createObjectStore('customers', { keyPath: 'id' });
+        store.createIndex('name', 'name');
       }
     };
     req.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
@@ -70,7 +74,7 @@ const DB = {
     });
   },
   async clearAll() {
-    const names = ['products', 'sales', 'expenses', 'meta'];
+    const names = ['products', 'sales', 'expenses', 'meta', 'customers'];
     for (const name of names) {
       const store = await tx(name, 'readwrite');
       await new Promise((resolve, reject) => {
@@ -81,13 +85,13 @@ const DB = {
     }
   },
   async exportAll() {
-    const [products, sales, expenses, meta] = await Promise.all([
-      DB.getAll('products'), DB.getAll('sales'), DB.getAll('expenses'), DB.getAll('meta')
+    const [products, sales, expenses, meta, customers] = await Promise.all([
+      DB.getAll('products'), DB.getAll('sales'), DB.getAll('expenses'), DB.getAll('meta'), DB.getAll('customers')
     ]);
-    return { version: DB_VERSION, exportedAt: new Date().toISOString(), products, sales, expenses, meta };
+    return { version: DB_VERSION, exportedAt: new Date().toISOString(), products, sales, expenses, meta, customers };
   },
   async importAll(data) {
-    const stores = { products: data.products, sales: data.sales, expenses: data.expenses, meta: data.meta };
+    const stores = { products: data.products, sales: data.sales, expenses: data.expenses, meta: data.meta, customers: data.customers };
     for (const [name, records] of Object.entries(stores)) {
       if (!Array.isArray(records)) continue;
       const store = await tx(name, 'readwrite');
