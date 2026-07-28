@@ -1,10 +1,11 @@
-const CACHE_NAME = 'skincare-books-v7';
+const CACHE_NAME = 'skincare-books-v9';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './db.js',
   './app.js',
+  './firebase-init.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

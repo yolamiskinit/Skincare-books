@@ -901,12 +901,18 @@ function openSettings() {
 
     <div class="section-title">Backup &amp; Data</div>
     <div class="card">
-      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Your data lives only on this device/browser. Back up regularly and save the file to email, Google Drive or WhatsApp yourself so you never lose it.</p>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Your data syncs automatically to your account, but it's still smart to keep an occasional backup file saved somewhere safe (email, Google Drive) as extra insurance.</p>
       <button class="btn secondary" id="backup-btn">Download Full Backup</button>
       <label>Restore from backup file</label><input type="file" id="restore-file" accept=".json">
       <button class="btn secondary" id="export-sales-btn">Export Sales as CSV (Excel)</button>
       <button class="btn secondary" id="export-stock-btn">Export Stock as CSV (Excel)</button>
       <button class="btn secondary" id="export-expenses-btn">Export Expenses as CSV (Excel)</button>
+    </div>
+
+    <div class="section-title">Account</div>
+    <div class="card">
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Signed in as <b>${esc((window.FB.auth.currentUser && window.FB.auth.currentUser.email) || '')}</b>. Your data syncs automatically to any device you sign in on.</p>
+      <button class="btn ghost" id="logout-btn">Log Out</button>
     </div>
 
     <div class="section-title">Danger Zone</div>
@@ -925,6 +931,7 @@ function openSettings() {
   document.getElementById('backup-btn').addEventListener('click', downloadBackup);
   document.getElementById('export-sales-btn').addEventListener('click', exportSalesCSV);
   document.getElementById('export-stock-btn').addEventListener('click', exportProductsCSV);
+  document.getElementById('logout-btn').addEventListener('click', () => { closeSheet(); window.FB.signOutUser(); });
   document.getElementById('export-expenses-btn').addEventListener('click', exportExpensesCSV);
   document.getElementById('restore-file').addEventListener('change', restoreBackup);
   document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
@@ -960,6 +967,7 @@ async function downloadBackup() {
 
 async function importExcelData() {
   if (!confirm('Import your products, sales and expenses from your old Excel sheet into the app now?')) return;
+  toast('Restoring your data… this may take a moment');
   try {
     const res = await fetch('excel-import-backup.json');
     if (!res.ok) throw new Error('not found');
@@ -976,10 +984,12 @@ async function importExcelData() {
 
 async function updateStockFromExcel() {
   if (!confirm('Update stock levels and prices from your latest Excel sheet now?')) return;
+  toast('Updating stock… this may take a moment');
   try {
     const res = await fetch('stock-update.json?t=' + Date.now());
     if (!res.ok) throw new Error('not found');
     const entries = await res.json();
+    const updatedProducts = [];
     let updated = 0, added = 0;
     for (const e of entries) {
       const existing = S.products.find((p) => p.name.trim().toLowerCase() === e.name.trim().toLowerCase());
@@ -987,15 +997,14 @@ async function updateStockFromExcel() {
         existing.stock = e.stock;
         existing.costPrice = e.costPrice;
         existing.sellingPrice = e.sellingPrice;
-        await DB.put('products', existing);
+        updatedProducts.push(existing);
         updated++;
       } else {
-        const product = { id: uid(), name: e.name, category: e.category, costPrice: e.costPrice, sellingPrice: e.sellingPrice, stock: e.stock, lowStockThreshold: S.settings.lowStock, createdAt: new Date().toISOString() };
-        await DB.put('products', product);
-        S.products.push(product);
+        updatedProducts.push({ id: uid(), name: e.name, category: e.category, costPrice: e.costPrice, sellingPrice: e.sellingPrice, stock: e.stock, lowStockThreshold: S.settings.lowStock, createdAt: new Date().toISOString() });
         added++;
       }
     }
+    await DB.importAll({ products: updatedProducts });
     toast(`Updated ${updated}, added ${added} new products`);
     closeSheet();
     await loadAll();
@@ -1009,6 +1018,7 @@ function restoreBackup(e) {
   const file = e.target.files[0];
   if (!file) return;
   if (!confirm('This will add/overwrite records from the backup file. Continue?')) { e.target.value = ''; return; }
+  toast('Restoring backup… this may take a moment');
   const reader = new FileReader();
   reader.onload = async () => {
     try {
@@ -1046,8 +1056,9 @@ function exportExpensesCSV() {
 }
 
 async function clearAllData() {
-  if (!confirm('This will permanently erase ALL products, sales and expenses from this device. This cannot be undone. Are you sure?')) return;
+  if (!confirm('This will permanently erase ALL products, sales, expenses and customers from your account (on every synced device). This cannot be undone. Are you sure?')) return;
   if (!confirm('Really sure? Consider downloading a backup first.')) return;
+  toast('Erasing…');
   await DB.clearAll();
   closeSheet();
   toast('All data erased');
@@ -1055,12 +1066,71 @@ async function clearAllData() {
   render();
 }
 
+/* ---------- Auth ---------- */
+let authMode = 'signin';
+
+function showAuthScreen() {
+  document.getElementById('auth-screen').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+function friendlyAuthError(err) {
+  const code = (err && err.code) || '';
+  if (code.includes('wrong-password') || code.includes('invalid-credential')) return 'Incorrect email or password';
+  if (code.includes('user-not-found')) return 'No account with that email — try Sign Up instead';
+  if (code.includes('email-already-in-use')) return 'That email already has an account — try Sign In instead';
+  if (code.includes('weak-password')) return 'Password should be at least 6 characters';
+  if (code.includes('invalid-email')) return 'Please enter a valid email address';
+  if (code.includes('network')) return 'No internet connection — check your network and try again';
+  return 'Something went wrong. Please try again.';
+}
+function setAuthMode(mode) {
+  authMode = mode;
+  document.getElementById('auth-title').textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-submit-btn').textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-toggle-btn').textContent = mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in';
+  document.getElementById('auth-error').textContent = '';
+}
+function setupAuthScreenHandlers() {
+  document.getElementById('auth-toggle-btn').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+  document.getElementById('auth-submit-btn').addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Please enter your email and password'; return; }
+    try {
+      if (authMode === 'signin') await window.FB.signIn(email, password);
+      else await window.FB.signUp(email, password);
+    } catch (err) {
+      errEl.textContent = friendlyAuthError(err);
+    }
+  });
+}
+
 /* ---------- Init ---------- */
 async function init() {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('sw.js'); } catch (e) { /* ignore */ }
   }
-  await loadAll();
-  setTab('home');
+  setupAuthScreenHandlers();
+  window.FB.onAuthStateChanged(async (user) => {
+    if (user) {
+      showApp();
+      await loadAll();
+      setTab(S.tab || 'home');
+    } else {
+      showAuthScreen();
+    }
+  });
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && window.FB.auth.currentUser) {
+      await loadAll();
+      render();
+    }
+  });
 }
-init();
+if (window.FB) init(); else window.addEventListener('firebase-ready', init, { once: true });
