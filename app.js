@@ -11,7 +11,15 @@ const S = {
   expenses: [],
   settings: { currency: '£', businessName: 'My Skincare Books', lowStock: 3 },
   salesFilter: 'all',
+  salesSearch: '',
+  salesPlatformFilter: 'All',
+  salesDateFrom: '',
+  salesDateTo: '',
   invCategory: 'All',
+  invSearch: '',
+  expSearch: '',
+  expCategoryFilter: 'All',
+  expFrequencyFilter: 'All',
   reportRange: 'month'
 };
 
@@ -125,11 +133,18 @@ function renderHome() {
 }
 
 /* ---------- SALES ---------- */
-function renderSales() {
+function getFilteredSales() {
   let list = S.sales;
   if (S.salesFilter === 'paid') list = list.filter((s) => s.paymentStatus === 'Paid');
   if (S.salesFilter === 'pending') list = list.filter((s) => s.paymentStatus === 'Pending');
-
+  if (S.salesPlatformFilter !== 'All') list = list.filter((s) => s.platform === S.salesPlatformFilter);
+  if (S.salesDateFrom) list = list.filter((s) => s.date && s.date >= S.salesDateFrom);
+  if (S.salesDateTo) list = list.filter((s) => s.date && s.date <= S.salesDateTo);
+  const q = S.salesSearch.trim().toLowerCase();
+  if (q) list = list.filter((s) => (s.productName || '').toLowerCase().includes(q) || (s.customer || '').toLowerCase().includes(q) || (s.orderNo || '').toLowerCase().includes(q));
+  return list;
+}
+function salesRowsHtml(list) {
   const rows = list.map((s) => `
     <div class="row" data-sale="${s.id}" style="cursor:pointer">
       <div class="row-main">
@@ -142,21 +157,72 @@ function renderSales() {
         <div class="row-sub" style="color:${s.profit >= 0 ? 'var(--green)' : 'var(--red)'}">profit ${money(s.profit)}</div>
       </div>
     </div>`).join('');
-
+  return rows || emptyState('No sales match', 'Try a different search or clear your filters');
+}
+function refreshSalesList() {
+  const list = getFilteredSales();
+  document.getElementById('sales-list').innerHTML = salesRowsHtml(list);
+  bindSalesRowClicks();
+}
+function bindSalesRowClicks() {
+  document.querySelectorAll('[data-sale]').forEach((el) => el.addEventListener('click', () => openSaleForm(el.dataset.sale)));
+}
+function salesFilterCount() {
+  return (S.salesPlatformFilter !== 'All' ? 1 : 0) + (S.salesDateFrom ? 1 : 0) + (S.salesDateTo ? 1 : 0);
+}
+function renderSales() {
+  const fCount = salesFilterCount();
   return `
+    <div class="search-row">
+      <input type="text" id="sales-search" placeholder="Search product, customer, order no..." value="${esc(S.salesSearch)}">
+      <button class="filter-btn ${fCount ? 'active-filter' : ''}" id="sales-filter-btn">Filter${fCount ? `<span class="filter-badge">${fCount}</span>` : ''}</button>
+    </div>
     <div class="pill-tabs">
       <button data-sfilter="all" class="${S.salesFilter==='all'?'active':''}">All (${S.sales.length})</button>
       <button data-sfilter="paid" class="${S.salesFilter==='paid'?'active':''}">Paid</button>
       <button data-sfilter="pending" class="${S.salesFilter==='pending'?'active':''}">Pending</button>
     </div>
-    <div class="card">${rows || emptyState('No sales yet', 'Tap + to log your first sale')}</div>
+    <div class="card" id="sales-list">${salesRowsHtml(getFilteredSales())}</div>
   `;
+}
+function openSalesFilterSheet() {
+  openSheet('Filter Sales', `
+    <label>Platform</label>
+    <div class="chips">${['All', ...PLATFORMS].map((p) => `<div class="chip ${S.salesPlatformFilter===p?'active':''}" data-pf="${esc(p)}">${esc(p)}</div>`).join('')}</div>
+    <div class="field-row">
+      <div><label>From date</label><input type="date" id="filter-date-from" value="${S.salesDateFrom}"></div>
+      <div><label>To date</label><input type="date" id="filter-date-to" value="${S.salesDateTo}"></div>
+    </div>
+    <button class="btn primary" id="apply-sales-filter">Apply Filters</button>
+    <button class="btn ghost" id="clear-sales-filter">Clear Filters</button>
+  `);
+  let pf = S.salesPlatformFilter;
+  document.querySelectorAll('[data-pf]').forEach((el) => el.addEventListener('click', () => {
+    pf = el.dataset.pf;
+    document.querySelectorAll('[data-pf]').forEach((x) => x.classList.toggle('active', x.dataset.pf === pf));
+  }));
+  document.getElementById('apply-sales-filter').addEventListener('click', () => {
+    S.salesPlatformFilter = pf;
+    S.salesDateFrom = document.getElementById('filter-date-from').value;
+    S.salesDateTo = document.getElementById('filter-date-to').value;
+    closeSheet();
+    render();
+  });
+  document.getElementById('clear-sales-filter').addEventListener('click', () => {
+    S.salesPlatformFilter = 'All'; S.salesDateFrom = ''; S.salesDateTo = '';
+    closeSheet();
+    render();
+  });
 }
 
 /* ---------- INVENTORY ---------- */
-function renderInventory() {
-  const cats = ['All', ...CATEGORIES];
-  const list = S.products.filter((p) => S.invCategory === 'All' || p.category === S.invCategory);
+function getFilteredProducts() {
+  let list = S.products.filter((p) => S.invCategory === 'All' || p.category === S.invCategory);
+  const q = S.invSearch.trim().toLowerCase();
+  if (q) list = list.filter((p) => (p.name || '').toLowerCase().includes(q));
+  return list;
+}
+function productRowsHtml(list) {
   const rows = list.map((p) => {
     const low = Number(p.stock) <= Number(p.lowStockThreshold != null ? p.lowStockThreshold : S.settings.lowStock);
     return `
@@ -168,17 +234,38 @@ function renderInventory() {
       <div class="row-end"><span class="badge ${low ? 'low' : 'ok'}">${p.stock} in stock</span></div>
     </div>`;
   }).join('');
-
+  return rows || emptyState('No products match', 'Try a different search or category');
+}
+function refreshInventoryList() {
+  const list = getFilteredProducts();
+  document.getElementById('inventory-list').innerHTML = productRowsHtml(list);
+  bindInventoryRowClicks();
+}
+function bindInventoryRowClicks() {
+  document.querySelectorAll('[data-product]').forEach((el) => el.addEventListener('click', () => openProductForm(el.dataset.product)));
+}
+function renderInventory() {
+  const cats = ['All', ...CATEGORIES];
   return `
+    <div class="search-row">
+      <input type="text" id="inventory-search" placeholder="Search products..." value="${esc(S.invSearch)}">
+    </div>
     <div class="chips">${cats.map((c) => `<div class="chip ${S.invCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</div>`).join('')}</div>
-    <div class="card">${rows || emptyState('No products yet', 'Tap + to add your first product')}</div>
+    <div class="card" id="inventory-list">${productRowsHtml(getFilteredProducts())}</div>
   `;
 }
 
 /* ---------- EXPENSES ---------- */
-function renderExpenses() {
-  const total = S.expenses.reduce((a, e) => a + Number(e.amount || 0), 0);
-  const rows = S.expenses.map((e) => `
+function getFilteredExpenses() {
+  let list = S.expenses;
+  if (S.expCategoryFilter !== 'All') list = list.filter((e) => e.category === S.expCategoryFilter);
+  if (S.expFrequencyFilter !== 'All') list = list.filter((e) => e.frequency === S.expFrequencyFilter);
+  const q = S.expSearch.trim().toLowerCase();
+  if (q) list = list.filter((e) => (e.name || '').toLowerCase().includes(q));
+  return list;
+}
+function expenseRowsHtml(list) {
+  const rows = list.map((e) => `
     <div class="row" data-expense="${e.id}" style="cursor:pointer">
       <div class="row-main">
         <div class="row-title">${esc(e.name)}</div>
@@ -186,13 +273,61 @@ function renderExpenses() {
       </div>
       <div class="row-end"><div class="row-amount red">${money(e.amount)}</div></div>
     </div>`).join('');
-
+  return rows || emptyState('No expenses match', 'Try a different search or filter');
+}
+function refreshExpensesList() {
+  const list = getFilteredExpenses();
+  document.getElementById('expenses-list').innerHTML = expenseRowsHtml(list);
+  bindExpenseRowClicks();
+}
+function bindExpenseRowClicks() {
+  document.querySelectorAll('[data-expense]').forEach((el) => el.addEventListener('click', () => openExpenseForm(el.dataset.expense)));
+}
+function expensesFilterCount() {
+  return (S.expCategoryFilter !== 'All' ? 1 : 0) + (S.expFrequencyFilter !== 'All' ? 1 : 0);
+}
+function renderExpenses() {
+  const total = S.expenses.reduce((a, e) => a + Number(e.amount || 0), 0);
+  const fCount = expensesFilterCount();
   return `
     <div class="stat-grid" style="margin-bottom:12px">
       <div class="stat-box wide"><div class="label">Total Expenses Logged</div><div class="value red">${money(total)}</div></div>
     </div>
-    <div class="card">${rows || emptyState('No expenses yet', 'Tap + to log a business expense')}</div>
+    <div class="search-row">
+      <input type="text" id="expenses-search" placeholder="Search expenses..." value="${esc(S.expSearch)}">
+      <button class="filter-btn ${fCount ? 'active-filter' : ''}" id="expenses-filter-btn">Filter${fCount ? `<span class="filter-badge">${fCount}</span>` : ''}</button>
+    </div>
+    <div class="card" id="expenses-list">${expenseRowsHtml(getFilteredExpenses())}</div>
   `;
+}
+function openExpensesFilterSheet() {
+  openSheet('Filter Expenses', `
+    <label>Category</label>
+    <div class="chips">${['All', ...EXPENSE_CATEGORIES].map((c) => `<div class="chip ${S.expCategoryFilter===c?'active':''}" data-ecf="${esc(c)}">${esc(c)}</div>`).join('')}</div>
+    <label>Frequency</label>
+    <div class="chips">${['All','One-time','Monthly','Yearly'].map((f) => `<div class="chip ${S.expFrequencyFilter===f?'active':''}" data-eff="${esc(f)}">${esc(f)}</div>`).join('')}</div>
+    <button class="btn primary" id="apply-expenses-filter">Apply Filters</button>
+    <button class="btn ghost" id="clear-expenses-filter">Clear Filters</button>
+  `);
+  let ecf = S.expCategoryFilter, eff = S.expFrequencyFilter;
+  document.querySelectorAll('[data-ecf]').forEach((el) => el.addEventListener('click', () => {
+    ecf = el.dataset.ecf;
+    document.querySelectorAll('[data-ecf]').forEach((x) => x.classList.toggle('active', x.dataset.ecf === ecf));
+  }));
+  document.querySelectorAll('[data-eff]').forEach((el) => el.addEventListener('click', () => {
+    eff = el.dataset.eff;
+    document.querySelectorAll('[data-eff]').forEach((x) => x.classList.toggle('active', x.dataset.eff === eff));
+  }));
+  document.getElementById('apply-expenses-filter').addEventListener('click', () => {
+    S.expCategoryFilter = ecf; S.expFrequencyFilter = eff;
+    closeSheet();
+    render();
+  });
+  document.getElementById('clear-expenses-filter').addEventListener('click', () => {
+    S.expCategoryFilter = 'All'; S.expFrequencyFilter = 'All';
+    closeSheet();
+    render();
+  });
 }
 
 /* ---------- REPORTS ---------- */
@@ -257,14 +392,27 @@ function emptyState(title, sub) {
 
 /* ---------- Event binding per tab ---------- */
 function bindTabEvents() {
-  document.querySelectorAll('[data-sale]').forEach((el) => el.addEventListener('click', () => openSaleForm(el.dataset.sale)));
-  document.querySelectorAll('[data-product]').forEach((el) => el.addEventListener('click', () => openProductForm(el.dataset.product)));
-  document.querySelectorAll('[data-expense]').forEach((el) => el.addEventListener('click', () => openExpenseForm(el.dataset.expense)));
+  bindSalesRowClicks();
+  bindInventoryRowClicks();
+  bindExpenseRowClicks();
   document.querySelectorAll('[data-sfilter]').forEach((el) => el.addEventListener('click', () => { S.salesFilter = el.dataset.sfilter; render(); }));
   document.querySelectorAll('[data-cat]').forEach((el) => el.addEventListener('click', () => { S.invCategory = el.dataset.cat; render(); }));
   document.querySelectorAll('[data-range]').forEach((el) => el.addEventListener('click', () => { S.reportRange = el.dataset.range; render(); }));
   const exportBtn = document.getElementById('export-csv-btn');
   if (exportBtn) exportBtn.addEventListener('click', exportSalesCSV);
+
+  const salesSearch = document.getElementById('sales-search');
+  if (salesSearch) salesSearch.addEventListener('input', () => { S.salesSearch = salesSearch.value; refreshSalesList(); });
+  const salesFilterBtn = document.getElementById('sales-filter-btn');
+  if (salesFilterBtn) salesFilterBtn.addEventListener('click', openSalesFilterSheet);
+
+  const invSearch = document.getElementById('inventory-search');
+  if (invSearch) invSearch.addEventListener('input', () => { S.invSearch = invSearch.value; refreshInventoryList(); });
+
+  const expSearch = document.getElementById('expenses-search');
+  if (expSearch) expSearch.addEventListener('input', () => { S.expSearch = expSearch.value; refreshExpensesList(); });
+  const expFilterBtn = document.getElementById('expenses-filter-btn');
+  if (expFilterBtn) expFilterBtn.addEventListener('click', openExpensesFilterSheet);
 }
 
 /* ---------- Modal sheet helper ---------- */
@@ -555,10 +703,10 @@ function openSettings() {
     <label>Default low stock alert level</label><input type="number" id="s-lowstock" value="${S.settings.lowStock}">
     <button class="btn primary" id="save-settings-btn">Save Settings</button>
 
-    <div class="section-title">Import From Excel</div>
+    <div class="section-title">Restore My Data</div>
     <div class="card">
-      <p style="font-size:12.5px;color:var(--muted);margin-top:0">One-time import of your products, sales and expenses from your old Excel sheet.</p>
-      <button class="btn primary" id="import-excel-btn">Import My Excel Data</button>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Restore your products, sales and expenses from your latest saved backup. Useful if you reinstall the app or set it up on a new phone.</p>
+      <button class="btn primary" id="import-excel-btn">Restore My Data</button>
     </div>
 
     <div class="section-title">Update Stock From Excel</div>

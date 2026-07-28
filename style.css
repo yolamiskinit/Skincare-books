@@ -166,6 +166,18 @@ textarea { resize: vertical; min-height: 60px; }
 
 .section-title { font-size: 13px; font-weight: 800; color: var(--muted); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: .03em; }
 .search-box { margin-bottom: 12px; }
+.search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.search-row input { flex: 1; }
+.filter-btn {
+  flex-shrink: 0; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--card); font-size: 13px; font-weight: 700; color: var(--muted);
+  display: flex; align-items: center; gap: 5px; position: relative;
+}
+.filter-btn.active-filter { background: var(--pink-light); color: var(--pink-dark); border-color: var(--pink); }
+.filter-badge {
+  background: var(--pink); color: white; font-size: 10px; font-weight: 800;
+  width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
 .pill-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .pill-tabs button { flex: 1; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); font-weight: 700; font-size: 12.5px; color: var(--muted); }
 .pill-tabs button.active { background: var(--pink); color: white; border-color: var(--pink); }
