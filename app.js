@@ -67,7 +67,7 @@ function setTab(tab) {
   S.tab = tab;
   document.querySelectorAll('.bottomnav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   const fab = document.getElementById('fab-btn');
-  if (tab === 'sales') { fab.style.display = 'flex'; fab.onclick = () => openSaleForm(); }
+  if (tab === 'sales') { fab.style.display = 'flex'; fab.onclick = () => openNewOrderForm(); }
   else if (tab === 'inventory') { fab.style.display = 'flex'; fab.onclick = () => openProductForm(); }
   else if (tab === 'expenses') { fab.style.display = 'flex'; fab.onclick = () => openExpenseForm(); }
   else if (tab === 'customers') { fab.style.display = 'flex'; fab.onclick = () => openCustomerForm(); }
@@ -414,8 +414,7 @@ function openCustomerForm(name) {
   document.getElementById('save-customer-btn').addEventListener('click', () => saveCustomer(record));
   if (name) document.getElementById('new-sale-for-customer-btn').addEventListener('click', () => {
     closeSheet();
-    openSaleForm();
-    document.getElementById('f-customer').value = name;
+    openNewOrderForm(name);
   });
   if (record) document.getElementById('delete-customer-btn').addEventListener('click', () => deleteCustomer(record));
 }
@@ -635,6 +634,178 @@ function openSaleForm(saleId) {
   document.getElementById('save-sale-btn').addEventListener('click', () => saveSale(editing));
   if (editing) document.getElementById('delete-sale-btn').addEventListener('click', () => deleteSale(editing));
   if (editing) document.getElementById('share-receipt-btn').addEventListener('click', () => shareReceipt(editing));
+}
+
+let orderItemNextIdx = 0;
+
+function orderItemHtml(idx) {
+  const productOptions = S.products.map((p) => `<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
+  return `
+    <div class="sale-item-block" data-idx="${idx}">
+      <div class="sale-item-header">
+        <span>Item</span>
+        <button type="button" class="remove-item-btn" data-remove-item="${idx}" style="${idx === 0 ? 'display:none' : ''}">Remove</button>
+      </div>
+      <label>Product</label>
+      <select class="oi-product" data-idx="${idx}"><option value="">-- Custom / not in inventory --</option>${productOptions}</select>
+      <label>Product name (if custom)</label><input type="text" class="oi-customname" data-idx="${idx}" placeholder="Type product name">
+      <div class="field-row">
+        <div><label>Qty</label><input type="number" class="oi-qty" data-idx="${idx}" min="1" value="1"></div>
+        <div><label>Selling price / unit</label><input type="number" step="0.01" class="oi-sellingprice" data-idx="${idx}"></div>
+      </div>
+      <label>Product cost / unit</label><input type="number" step="0.01" class="oi-cost" data-idx="${idx}">
+    </div>
+  `;
+}
+
+function openNewOrderForm(prefillCustomer) {
+  orderItemNextIdx = 1;
+  const platformOptions = PLATFORMS.map((p) => `<option value="${p}">${p}</option>`).join('');
+
+  openSheet('Log an Order', `
+    <label>Date</label><input type="date" id="f-date" value="${todayISO()}">
+    <label>Platform</label><select id="f-platform">${platformOptions}</select>
+    <div class="field-row">
+      <div><label>Customer name</label><input type="text" id="f-customer" list="customer-datalist" placeholder="e.g. Sue" value="${esc(prefillCustomer || '')}">
+      <datalist id="customer-datalist">${S.customers.map((c) => `<option value="${esc(c.name)}">`).join('')}</datalist></div>
+      <div><label>Order No (optional)</label><input type="text" id="f-orderno"></div>
+    </div>
+
+    <div class="section-title">Items</div>
+    <div id="order-items">${orderItemHtml(0)}</div>
+    <button type="button" class="link-btn" id="add-item-btn">+ Add another item</button>
+
+    <div class="section-title">Shipping &amp; Fees (whole order)</div>
+    <div class="field-row">
+      <div><label>Shipping charged to customer</label><input type="number" step="0.01" id="f-shipcharged" value="0"></div>
+      <div><label>Platform / payment fee</label><input type="number" step="0.01" id="f-fee" value="0"></div>
+    </div>
+    <label>Shipping cost (what you paid)</label><input type="number" step="0.01" id="f-shipcost" value="0">
+
+    <div class="field-row">
+      <div><label>Payment status</label><select id="f-status"><option>Paid</option><option>Pending</option></select></div>
+      <div><label>Payment date</label><input type="date" id="f-paydate"></div>
+    </div>
+    <label>Notes</label><textarea id="f-notes"></textarea>
+
+    <div class="computed-box">
+      <div class="item"><div class="lab">TOTAL EARNED</div><div class="val" id="calc-earned">${S.settings.currency}0.00</div></div>
+      <div class="item"><div class="lab">TOTAL PROFIT</div><div class="val" id="calc-profit">${S.settings.currency}0.00</div></div>
+    </div>
+
+    <button class="btn primary" id="save-order-btn">Save Order</button>
+  `);
+
+  bindOrderItemsContainer();
+  ['f-shipcharged', 'f-fee', 'f-shipcost'].forEach((id) => document.getElementById(id).addEventListener('input', recalcOrderTotals));
+  document.getElementById('add-item-btn').addEventListener('click', () => {
+    document.getElementById('order-items').insertAdjacentHTML('beforeend', orderItemHtml(orderItemNextIdx));
+    orderItemNextIdx++;
+    bindOrderItemsContainer();
+    recalcOrderTotals();
+  });
+  document.getElementById('save-order-btn').addEventListener('click', saveNewOrder);
+  recalcOrderTotals();
+}
+
+function bindOrderItemsContainer() {
+  const container = document.getElementById('order-items');
+  container.querySelectorAll('.oi-product').forEach((sel) => {
+    sel.onchange = () => {
+      const p = S.products.find((x) => x.id === sel.value);
+      const idx = sel.dataset.idx;
+      if (p) {
+        container.querySelector(`.oi-sellingprice[data-idx="${idx}"]`).value = p.sellingPrice;
+        container.querySelector(`.oi-cost[data-idx="${idx}"]`).value = p.costPrice;
+      }
+      recalcOrderTotals();
+    };
+  });
+  container.querySelectorAll('.oi-qty, .oi-sellingprice, .oi-cost').forEach((el) => { el.oninput = recalcOrderTotals; });
+  container.querySelectorAll('[data-remove-item]').forEach((btn) => {
+    btn.onclick = () => { btn.closest('.sale-item-block').remove(); recalcOrderTotals(); };
+  });
+}
+
+function getOrderItemsData() {
+  return [...document.querySelectorAll('#order-items .sale-item-block')].map((block) => {
+    const productSel = block.querySelector('.oi-product');
+    const productId = productSel.value || null;
+    const product = productId ? S.products.find((p) => p.id === productId) : null;
+    const customName = block.querySelector('.oi-customname').value.trim();
+    const productName = product ? product.name : customName;
+    return {
+      productId, productName,
+      qty: Number(block.querySelector('.oi-qty').value) || 0,
+      sellingPrice: Number(block.querySelector('.oi-sellingprice').value) || 0,
+      productCost: Number(block.querySelector('.oi-cost').value) || 0
+    };
+  });
+}
+
+function recalcOrderTotals() {
+  const items = getOrderItemsData();
+  const shipCharged = Number(document.getElementById('f-shipcharged').value) || 0;
+  const fee = Number(document.getElementById('f-fee').value) || 0;
+  const shipCost = Number(document.getElementById('f-shipcost').value) || 0;
+  const grossSales = items.reduce((a, i) => a + (i.sellingPrice * i.qty), 0);
+  const totalCost = items.reduce((a, i) => a + (i.productCost * i.qty), 0);
+  const earned = grossSales + shipCharged - fee - shipCost;
+  const profit = earned - totalCost;
+  document.getElementById('calc-earned').textContent = money(earned);
+  document.getElementById('calc-profit').textContent = money(profit);
+}
+
+async function saveNewOrder() {
+  const items = getOrderItemsData();
+  if (!items.length || items.some((i) => !i.productName)) { toast('Please select or type a product name for every item'); return; }
+  if (items.some((i) => i.qty <= 0)) { toast('Quantity must be at least 1 for every item'); return; }
+
+  const date = document.getElementById('f-date').value || todayISO();
+  const platform = document.getElementById('f-platform').value;
+  const customer = document.getElementById('f-customer').value.trim();
+  const orderNo = document.getElementById('f-orderno').value.trim();
+  const shippingCharged = Number(document.getElementById('f-shipcharged').value) || 0;
+  const platformFee = Number(document.getElementById('f-fee').value) || 0;
+  const shippingCost = Number(document.getElementById('f-shipcost').value) || 0;
+  const paymentStatus = document.getElementById('f-status').value;
+  const paymentDate = document.getElementById('f-paydate').value || '';
+  const notes = document.getElementById('f-notes').value.trim();
+
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const isFirst = i === 0;
+    const earned = (it.sellingPrice * it.qty) + (isFirst ? shippingCharged - platformFee - shippingCost : 0);
+    const profit = earned - (it.productCost * it.qty);
+    const sale = {
+      id: uid(), date, platform, customer, orderNo,
+      productId: it.productId, productName: it.productName, qty: it.qty,
+      sellingPrice: it.sellingPrice,
+      shippingCharged: isFirst ? shippingCharged : 0,
+      platformFee: isFirst ? platformFee : 0,
+      productCost: it.productCost,
+      shippingCost: isFirst ? shippingCost : 0,
+      earned, profit, paymentStatus, paymentDate, notes,
+      createdAt: new Date().toISOString()
+    };
+    await DB.put('sales', sale);
+    if (it.productId) {
+      const p = S.products.find((x) => x.id === it.productId);
+      if (p) { p.stock = Number(p.stock) - it.qty; await DB.put('products', p); }
+    }
+  }
+
+  if (customer) {
+    const existingCust = S.customers.find((c) => c.name.trim().toLowerCase() === customer.toLowerCase());
+    if (!existingCust) {
+      await DB.put('customers', { id: uid(), name: customer, phone: '', notes: '', createdAt: new Date().toISOString() });
+    }
+  }
+
+  closeSheet();
+  toast(items.length > 1 ? `Order with ${items.length} items logged` : 'Sale logged');
+  await loadAll();
+  render();
 }
 
 async function shareReceipt(sale) {
