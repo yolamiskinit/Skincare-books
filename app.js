@@ -2,6 +2,7 @@
 const CATEGORIES = ["Serum & Treatment","Lotions","Face Moisturizers & Cream","Facial Wash, Toner & Cleanser","Shower Gel & Soap","Scrub, Mask & Exfoliate","Sunscreen","Belgium Goods","Bundles","Other"];
 const PLATFORMS = ["TikTok","Instagram","Facebook","WhatsApp","eBay","Website","Other"];
 const EXPENSE_CATEGORIES = ["Stock Purchase","Shipping & Packaging","Subscriptions","Business Registration","Marketing","Other"];
+const ORDER_STATUSES = ["Pending","Packed","Posted","Delivered","Completed"];
 
 /* ---------- State ---------- */
 const S = {
@@ -16,6 +17,7 @@ const S = {
   salesPlatformFilter: 'All',
   salesDateFrom: '',
   salesDateTo: '',
+  salesOrderStatusFilter: 'All',
   invCategory: 'All',
   invSearch: '',
   expSearch: '',
@@ -142,9 +144,11 @@ function getFilteredSales() {
   let list = S.sales;
   if (S.salesFilter === 'paid') list = list.filter((s) => s.paymentStatus === 'Paid');
   if (S.salesFilter === 'pending') list = list.filter((s) => s.paymentStatus === 'Pending');
+  if (S.salesFilter === 'today') list = list.filter((s) => s.date === todayISO());
   if (S.salesPlatformFilter !== 'All') list = list.filter((s) => s.platform === S.salesPlatformFilter);
   if (S.salesDateFrom) list = list.filter((s) => s.date && s.date >= S.salesDateFrom);
   if (S.salesDateTo) list = list.filter((s) => s.date && s.date <= S.salesDateTo);
+  if (S.salesOrderStatusFilter !== 'All') list = list.filter((s) => (s.orderStatus || 'Pending') === S.salesOrderStatusFilter);
   const q = S.salesSearch.trim().toLowerCase();
   if (q) list = list.filter((s) => (s.productName || '').toLowerCase().includes(q) || (s.customer || '').toLowerCase().includes(q) || (s.orderNo || '').toLowerCase().includes(q));
   return list;
@@ -155,7 +159,8 @@ function salesRowsHtml(list) {
       <div class="row-main">
         <div class="row-title">${esc(s.productName)}</div>
         <div class="row-sub">${fmtDate(s.date)} &middot; ${esc(s.customer || 'No name')} &middot; Qty ${s.qty}</div>
-        <span class="badge platform">${esc(s.platform)}</span> <span class="badge ${s.paymentStatus === 'Paid' ? 'paid' : 'pending'}">${s.paymentStatus}</span>
+        <span class="badge platform">${esc(s.platform)}</span> <span class="badge ${s.paymentStatus === 'Paid' ? 'paid' : 'pending'}">${s.paymentStatus}</span> <span class="badge status-${(s.orderStatus || 'Pending').toLowerCase()}">${esc(s.orderStatus || 'Pending')}</span>
+        ${s.paymentStatus === 'Pending' ? `<button type="button" class="mark-paid-btn" data-mark-paid="${s.id}">Mark Paid</button>` : ''}
       </div>
       <div class="row-end">
         <div class="row-amount">${money(s.earned)}</div>
@@ -171,9 +176,23 @@ function refreshSalesList() {
 }
 function bindSalesRowClicks() {
   document.querySelectorAll('[data-sale]').forEach((el) => el.addEventListener('click', () => openSaleForm(el.dataset.sale)));
+  document.querySelectorAll('[data-mark-paid]').forEach((el) => el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    markSalePaid(el.dataset.markPaid);
+  }));
+}
+async function markSalePaid(saleId) {
+  const sale = S.sales.find((s) => s.id === saleId);
+  if (!sale) return;
+  sale.paymentStatus = 'Paid';
+  sale.paymentDate = todayISO();
+  await DB.put('sales', sale);
+  toast('Marked as paid');
+  await loadAll();
+  render();
 }
 function salesFilterCount() {
-  return (S.salesPlatformFilter !== 'All' ? 1 : 0) + (S.salesDateFrom ? 1 : 0) + (S.salesDateTo ? 1 : 0);
+  return (S.salesPlatformFilter !== 'All' ? 1 : 0) + (S.salesDateFrom ? 1 : 0) + (S.salesDateTo ? 1 : 0) + (S.salesOrderStatusFilter !== 'All' ? 1 : 0);
 }
 function renderSales() {
   const fCount = salesFilterCount();
@@ -184,6 +203,7 @@ function renderSales() {
     </div>
     <div class="pill-tabs">
       <button data-sfilter="all" class="${S.salesFilter==='all'?'active':''}">All (${S.sales.length})</button>
+      <button data-sfilter="today" class="${S.salesFilter==='today'?'active':''}">Today</button>
       <button data-sfilter="paid" class="${S.salesFilter==='paid'?'active':''}">Paid</button>
       <button data-sfilter="pending" class="${S.salesFilter==='pending'?'active':''}">Pending</button>
     </div>
@@ -194,6 +214,8 @@ function openSalesFilterSheet() {
   openSheet('Filter Sales', `
     <label>Platform</label>
     <div class="chips">${['All', ...PLATFORMS].map((p) => `<div class="chip ${S.salesPlatformFilter===p?'active':''}" data-pf="${esc(p)}">${esc(p)}</div>`).join('')}</div>
+    <label>Order Status</label>
+    <div class="chips">${['All', ...ORDER_STATUSES].map((s) => `<div class="chip ${S.salesOrderStatusFilter===s?'active':''}" data-osf="${esc(s)}">${esc(s)}</div>`).join('')}</div>
     <div class="field-row">
       <div><label>From date</label><input type="date" id="filter-date-from" value="${S.salesDateFrom}"></div>
       <div><label>To date</label><input type="date" id="filter-date-to" value="${S.salesDateTo}"></div>
@@ -202,19 +224,25 @@ function openSalesFilterSheet() {
     <button class="btn ghost" id="clear-sales-filter">Clear Filters</button>
   `);
   let pf = S.salesPlatformFilter;
+  let osf = S.salesOrderStatusFilter;
   document.querySelectorAll('[data-pf]').forEach((el) => el.addEventListener('click', () => {
     pf = el.dataset.pf;
     document.querySelectorAll('[data-pf]').forEach((x) => x.classList.toggle('active', x.dataset.pf === pf));
   }));
+  document.querySelectorAll('[data-osf]').forEach((el) => el.addEventListener('click', () => {
+    osf = el.dataset.osf;
+    document.querySelectorAll('[data-osf]').forEach((x) => x.classList.toggle('active', x.dataset.osf === osf));
+  }));
   document.getElementById('apply-sales-filter').addEventListener('click', () => {
     S.salesPlatformFilter = pf;
+    S.salesOrderStatusFilter = osf;
     S.salesDateFrom = document.getElementById('filter-date-from').value;
     S.salesDateTo = document.getElementById('filter-date-to').value;
     closeSheet();
     render();
   });
   document.getElementById('clear-sales-filter').addEventListener('click', () => {
-    S.salesPlatformFilter = 'All'; S.salesDateFrom = ''; S.salesDateTo = '';
+    S.salesPlatformFilter = 'All'; S.salesOrderStatusFilter = 'All'; S.salesDateFrom = ''; S.salesDateTo = '';
     closeSheet();
     render();
   });
@@ -610,6 +638,8 @@ function openSaleForm(saleId) {
       <div><label>Payment status</label><select id="f-status"><option ${editing && editing.paymentStatus==='Paid'?'selected':''}>Paid</option><option ${editing && editing.paymentStatus==='Pending'?'selected':''}>Pending</option></select></div>
       <div><label>Payment date</label><input type="date" id="f-paydate" value="${editing ? editing.paymentDate || '' : ''}"></div>
     </div>
+    <label>Order status</label>
+    <select id="f-orderstatus">${ORDER_STATUSES.map((s) => `<option ${editing && (editing.orderStatus || 'Pending') === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
     <label>Notes</label><textarea id="f-notes">${editing ? esc(editing.notes || '') : ''}</textarea>
 
     <div class="computed-box">
@@ -619,6 +649,7 @@ function openSaleForm(saleId) {
 
     <button class="btn primary" id="save-sale-btn">${editing ? 'Save Changes' : 'Save Sale'}</button>
     ${editing ? '<button class="btn secondary" id="share-receipt-btn">Share Receipt</button>' : ''}
+    ${editing ? '<button class="btn secondary" id="duplicate-sale-btn">Duplicate as New Sale</button>' : ''}
     ${editing ? '<button class="btn danger" id="delete-sale-btn">Delete Sale</button>' : ''}
   `);
 
@@ -634,6 +665,7 @@ function openSaleForm(saleId) {
   document.getElementById('save-sale-btn').addEventListener('click', () => saveSale(editing));
   if (editing) document.getElementById('delete-sale-btn').addEventListener('click', () => deleteSale(editing));
   if (editing) document.getElementById('share-receipt-btn').addEventListener('click', () => shareReceipt(editing));
+  if (editing) document.getElementById('duplicate-sale-btn').addEventListener('click', () => duplicateSaleAsOrder(editing));
 }
 
 let orderItemNextIdx = 0;
@@ -686,6 +718,8 @@ function openNewOrderForm(prefillCustomer) {
       <div><label>Payment status</label><select id="f-status"><option>Paid</option><option>Pending</option></select></div>
       <div><label>Payment date</label><input type="date" id="f-paydate"></div>
     </div>
+    <label>Order status</label>
+    <select id="f-orderstatus">${ORDER_STATUSES.map((s) => `<option>${s}</option>`).join('')}</select>
     <label>Notes</label><textarea id="f-notes"></textarea>
 
     <div class="computed-box">
@@ -706,6 +740,24 @@ function openNewOrderForm(prefillCustomer) {
   });
   document.getElementById('save-order-btn').addEventListener('click', saveNewOrder);
   recalcOrderTotals();
+}
+
+function duplicateSaleAsOrder(sale) {
+  closeSheet();
+  openNewOrderForm(sale.customer);
+  document.getElementById('f-platform').value = sale.platform;
+  const block = document.querySelector('#order-items .sale-item-block');
+  const productSelect = block.querySelector('.oi-product');
+  if (sale.productId && S.products.some((p) => p.id === sale.productId)) {
+    productSelect.value = sale.productId;
+  } else {
+    block.querySelector('.oi-customname').value = sale.productName;
+  }
+  block.querySelector('.oi-qty').value = sale.qty;
+  block.querySelector('.oi-sellingprice').value = sale.sellingPrice;
+  block.querySelector('.oi-cost').value = sale.productCost;
+  recalcOrderTotals();
+  toast('Review the details and tap Save Order');
 }
 
 function bindOrderItemsContainer() {
@@ -770,6 +822,7 @@ async function saveNewOrder() {
   const shippingCost = Number(document.getElementById('f-shipcost').value) || 0;
   const paymentStatus = document.getElementById('f-status').value;
   const paymentDate = document.getElementById('f-paydate').value || '';
+  const orderStatus = document.getElementById('f-orderstatus').value;
   const notes = document.getElementById('f-notes').value.trim();
 
   for (let i = 0; i < items.length; i++) {
@@ -785,7 +838,7 @@ async function saveNewOrder() {
       platformFee: isFirst ? platformFee : 0,
       productCost: it.productCost,
       shippingCost: isFirst ? shippingCost : 0,
-      earned, profit, paymentStatus, paymentDate, notes,
+      earned, profit, paymentStatus, paymentDate, orderStatus, notes,
       createdAt: new Date().toISOString()
     };
     await DB.put('sales', sale);
@@ -873,6 +926,7 @@ async function saveSale(editing) {
     productId, productName, qty, sellingPrice, shippingCharged, platformFee, productCost, shippingCost, earned, profit,
     paymentStatus: document.getElementById('f-status').value,
     paymentDate: document.getElementById('f-paydate').value || '',
+    orderStatus: document.getElementById('f-orderstatus').value,
     notes: document.getElementById('f-notes').value.trim(),
     createdAt: editing ? editing.createdAt : new Date().toISOString()
   };
@@ -1208,8 +1262,8 @@ function csvFromRows(headers, rows) {
   return [headers, ...rows].map((r) => r.map((v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
 }
 function exportSalesCSV() {
-  const headers = ['Date','Platform','Customer','Order No','Product','Qty','Selling Price','Shipping Charged','Platform Fee','Product Cost','Shipping Cost','Earned','Profit','Payment Status','Payment Date','Notes'];
-  const rows = S.sales.map((s) => [s.date, s.platform, s.customer, s.orderNo, s.productName, s.qty, s.sellingPrice, s.shippingCharged, s.platformFee, s.productCost, s.shippingCost, s.earned.toFixed(2), s.profit.toFixed(2), s.paymentStatus, s.paymentDate, s.notes]);
+  const headers = ['Date','Platform','Customer','Order No','Product','Qty','Selling Price','Shipping Charged','Platform Fee','Product Cost','Shipping Cost','Earned','Profit','Payment Status','Payment Date','Order Status','Notes'];
+  const rows = S.sales.map((s) => [s.date, s.platform, s.customer, s.orderNo, s.productName, s.qty, s.sellingPrice, s.shippingCharged, s.platformFee, s.productCost, s.shippingCost, s.earned.toFixed(2), s.profit.toFixed(2), s.paymentStatus, s.paymentDate, s.orderStatus || 'Pending', s.notes]);
   downloadFile(`sales-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
   toast('Sales exported');
 }
