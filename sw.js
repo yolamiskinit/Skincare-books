@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skincare-books-v12';
+const CACHE_NAME = 'skincare-books-v13';
 const ASSETS = [
   './',
   './index.html',

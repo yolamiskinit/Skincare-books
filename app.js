@@ -107,36 +107,48 @@ function renderHome() {
   return `
     <div class="section-title">This Month</div>
     <div class="stat-grid">
-      <div class="stat-box"><div class="label">Revenue</div><div class="value">${money(revenue)}</div></div>
-      <div class="stat-box"><div class="label">Profit</div><div class="value green">${money(profit)}</div></div>
-      <div class="stat-box"><div class="label">Expenses</div><div class="value red">${money(expTotal)}</div></div>
-      <div class="stat-box"><div class="label">Net Profit</div><div class="value ${net >= 0 ? 'green' : 'red'}">${money(net)}</div></div>
+      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">Revenue</div><div class="value">${money(revenue)}</div></div>
+      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">Profit</div><div class="value green">${money(profit)}</div></div>
+      <div class="stat-box" data-home-nav="expenses" style="cursor:pointer"><div class="label">Expenses</div><div class="value red">${money(expTotal)}</div></div>
+      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">Net Profit</div><div class="value ${net >= 0 ? 'green' : 'red'}">${money(net)}</div></div>
     </div>
 
     <div class="section-title">Today</div>
-    <div class="card">
+    <div class="card" data-home-nav="sales-today" style="cursor:pointer">
       <div class="row"><div class="row-main"><div class="row-title">${todaySales.length} sale${todaySales.length===1?'':'s'} logged today</div></div>
       <div class="row-end"><div class="row-amount pink">${money(todaySales.reduce((a,s)=>a+s.earned,0))}</div></div></div>
     </div>
 
     <div class="section-title">Needs Attention</div>
     <div class="card">
-      <div class="row"><div class="row-main"><div class="row-title">Pending payments</div><div class="row-sub">${pending.length} sale(s) awaiting payment</div></div>
+      <div class="row" data-home-nav="sales-pending" style="cursor:pointer"><div class="row-main"><div class="row-title">Pending payments</div><div class="row-sub">${pending.length} sale(s) awaiting payment</div></div>
       <div class="row-end"><div class="row-amount" style="color:var(--amber)">${money(pendingTotal)}</div></div></div>
-      <div class="row"><div class="row-main"><div class="row-title">Low stock items</div><div class="row-sub">${lowStock.length} product(s) running low</div></div>
+      <div class="row" data-home-nav="inventory-low" style="cursor:pointer"><div class="row-main"><div class="row-title">Low stock items</div><div class="row-sub">${lowStock.length} product(s) running low</div></div>
       <div class="row-end"><span class="badge ${lowStock.length ? 'low' : 'ok'}">${lowStock.length ? 'Check stock' : 'All good'}</span></div></div>
     </div>
 
     ${lowStock.length ? `<div class="card"><h3>Low Stock</h3>${lowStock.map((p) => `
-      <div class="row"><div class="row-main"><div class="row-title">${esc(p.name)}</div><div class="row-sub">${esc(p.category)}</div></div>
+      <div class="row" data-home-product="${p.id}" style="cursor:pointer"><div class="row-main"><div class="row-title">${esc(p.name)}</div><div class="row-sub">${esc(p.category)}</div></div>
       <div class="row-end"><span class="badge low">${p.stock} left</span></div></div>`).join('')}</div>` : ''}
 
     <div class="section-title">All Time</div>
     <div class="stat-grid">
-      <div class="stat-box"><div class="label">Total Revenue</div><div class="value">${money(S.sales.reduce((a,s)=>a+s.earned,0))}</div></div>
-      <div class="stat-box"><div class="label">Total Profit</div><div class="value green">${money(S.sales.reduce((a,s)=>a+s.profit,0))}</div></div>
+      <div class="stat-box" data-home-nav="reports-all" style="cursor:pointer"><div class="label">Total Revenue</div><div class="value">${money(S.sales.reduce((a,s)=>a+s.earned,0))}</div></div>
+      <div class="stat-box" data-home-nav="reports-all" style="cursor:pointer"><div class="label">Total Profit</div><div class="value green">${money(S.sales.reduce((a,s)=>a+s.profit,0))}</div></div>
     </div>
   `;
+}
+function bindHomeEvents() {
+  document.querySelectorAll('[data-home-nav]').forEach((el) => el.addEventListener('click', () => {
+    const target = el.dataset.homeNav;
+    if (target === 'sales-today') { S.salesFilter = 'today'; setTab('sales'); }
+    else if (target === 'sales-pending') { S.salesFilter = 'pending'; setTab('sales'); }
+    else if (target === 'expenses') { setTab('expenses'); }
+    else if (target === 'inventory-low') { setTab('inventory'); }
+    else if (target === 'reports-month') { S.reportRange = 'month'; setTab('reports'); }
+    else if (target === 'reports-all') { S.reportRange = 'all'; setTab('reports'); }
+  }));
+  document.querySelectorAll('[data-home-product]').forEach((el) => el.addEventListener('click', () => openProductForm(el.dataset.homeProduct)));
 }
 
 /* ---------- SALES ---------- */
@@ -563,6 +575,7 @@ function emptyState(title, sub) {
 
 /* ---------- Event binding per tab ---------- */
 function bindTabEvents() {
+  bindHomeEvents();
   bindSalesRowClicks();
   bindInventoryRowClicks();
   bindExpenseRowClicks();
