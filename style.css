@@ -41,7 +41,7 @@ html, body {
 /* Header */
 .topbar {
   padding: env(safe-area-inset-top, 14px) 16px 12px;
-  background: var(--pink);
+  background: linear-gradient(135deg, var(--pink), var(--pink-dark));
   color: white;
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
@@ -72,6 +72,24 @@ main { flex: 1; overflow-y: auto; padding: 14px 14px 90px; -webkit-overflow-scro
 }
 .bottomnav button .ic { font-size: 18px; }
 .bottomnav button.active { color: var(--pink-dark); }
+
+/* Home hero banner */
+.hero-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, var(--pink-light), #fff);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 16px;
+}
+.hero-icon { font-size: 28px; flex-shrink: 0; }
+.hero-title { font-size: 16px; font-weight: 800; color: var(--pink-dark); }
+.hero-sub { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+
+/* Row leading icon */
+.row-icon {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--pink-light);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+  flex-shrink: 0; margin-right: 10px;
+}
 
 /* Charts */
 .chart-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
@@ -107,8 +125,10 @@ main { flex: 1; overflow-y: auto; padding: 14px 14px 90px; -webkit-overflow-scro
 .row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 11px 0; border-bottom: 1px solid var(--border);
+  transition: opacity .1s;
 }
 .row:last-child { border-bottom: none; }
+.row[style*="cursor:pointer"]:active { opacity: .6; }
 .row-main { flex: 1; min-width: 0; }
 .row-title { font-weight: 700; font-size: 14.5px; }
 .row-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
@@ -146,10 +166,13 @@ main { flex: 1; overflow-y: auto; padding: 14px 14px 90px; -webkit-overflow-scro
 /* FAB */
 .fab {
   position: absolute; right: 16px; bottom: 74px; z-index: 15;
-  width: 56px; height: 56px; border-radius: 50%; background: var(--pink);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--pink), var(--pink-dark));
   color: white; border: none; font-size: 26px; box-shadow: 0 4px 12px rgba(201,103,143,0.5);
   display: flex; align-items: center; justify-content: center;
+  transition: transform .1s;
 }
+.fab:active { transform: scale(0.94); }
 
 /* Forms / sheet modal */
 .sheet-overlay {
@@ -177,7 +200,9 @@ textarea { resize: vertical; min-height: 60px; }
 .btn {
   display: block; width: 100%; padding: 13px; border-radius: 12px; border: none;
   font-size: 15px; font-weight: 700; text-align: center; margin-top: 16px;
+  transition: transform .1s;
 }
+.btn:active { transform: scale(0.98); }
 .btn.primary { background: var(--pink); color: white; }
 .btn.secondary { background: var(--pink-light); color: var(--pink-dark); }
 .btn.danger { background: #fbe3e1; color: var(--red); }

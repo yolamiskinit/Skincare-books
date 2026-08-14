@@ -1,5 +1,12 @@
 /* ---------- Constants ---------- */
 const CATEGORIES = ["Serum & Treatment","Lotions","Face Moisturizers & Cream","Facial Wash, Toner & Cleanser","Shower Gel & Soap","Scrub, Mask & Exfoliate","Sunscreen","Belgium Goods","Bundles","Other"];
+const CATEGORY_ICONS = {
+  "Serum & Treatment": "💧", "Lotions": "🧴", "Face Moisturizers & Cream": "🫙",
+  "Facial Wash, Toner & Cleanser": "🧼", "Shower Gel & Soap": "🛁", "Scrub, Mask & Exfoliate": "✨",
+  "Sunscreen": "☀️", "Belgium Goods": "🇧🇪", "Bundles": "🎁", "Other": "📦"
+};
+function categoryIcon(cat) { return CATEGORY_ICONS[cat] || "📦"; }
+function productDisplayName(p) { return p && p.variant ? `${p.name} — ${p.variant}` : (p ? p.name : ''); }
 const PLATFORMS = ["TikTok","Instagram","Facebook","WhatsApp","eBay","Website","Other"];
 const EXPENSE_CATEGORIES = ["Stock Purchase","Shipping & Packaging","Subscriptions","Business Registration","Marketing","Other"];
 const ORDER_STATUSES = ["Pending","Packed","Posted","Delivered","Completed"];
@@ -46,6 +53,12 @@ function yearBounds() {
   return { start: `${now.getFullYear()}-01-01`, end: `${now.getFullYear()}-12-31` };
 }
 function inRange(dateStr, start, end) { return dateStr >= start && dateStr <= end; }
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return { text: 'Good morning', icon: '🌤' };
+  if (h < 18) return { text: 'Good afternoon', icon: '☀️' };
+  return { text: 'Good evening', icon: '🌙' };
+}
 
 /* ---------- Data load ---------- */
 function applyLoadedData(products, sales, expenses, metaRows, customers) {
@@ -116,13 +129,19 @@ function renderHome() {
   const lowStock = S.products.filter((p) => Number(p.stock) <= Number(p.lowStockThreshold != null ? p.lowStockThreshold : S.settings.lowStock));
   const todaySales = S.sales.filter((s) => s.date === todayISO());
 
+  const g = greeting();
   return `
+    <div class="hero-banner">
+      <div class="hero-icon">${g.icon}</div>
+      <div><div class="hero-title">${g.text}</div><div class="hero-sub">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
+    </div>
+
     <div class="section-title">This Month</div>
     <div class="stat-grid">
-      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">Revenue</div><div class="value">${money(revenue)}</div></div>
-      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">Profit</div><div class="value green">${money(profit)}</div></div>
-      <div class="stat-box" data-home-nav="expenses" style="cursor:pointer"><div class="label">Expenses</div><div class="value red">${money(expTotal)}</div></div>
-      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">Net Profit</div><div class="value ${net >= 0 ? 'green' : 'red'}">${money(net)}</div></div>
+      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">💰 Revenue</div><div class="value">${money(revenue)}</div></div>
+      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">📈 Profit</div><div class="value green">${money(profit)}</div></div>
+      <div class="stat-box" data-home-nav="expenses" style="cursor:pointer"><div class="label">🧾 Expenses</div><div class="value red">${money(expTotal)}</div></div>
+      <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">⚖️ Net Profit</div><div class="value ${net >= 0 ? 'green' : 'red'}">${money(net)}</div></div>
     </div>
 
     <div class="section-title">Today</div>
@@ -140,7 +159,9 @@ function renderHome() {
     </div>
 
     ${lowStock.length ? `<div class="card"><h3>Low Stock</h3>${lowStock.map((p) => `
-      <div class="row" data-home-product="${p.id}" style="cursor:pointer"><div class="row-main"><div class="row-title">${esc(p.name)}</div><div class="row-sub">${esc(p.category)}</div></div>
+      <div class="row" data-home-product="${p.id}" style="cursor:pointer">
+        <div class="row-icon">${categoryIcon(p.category)}</div>
+        <div class="row-main"><div class="row-title">${esc(productDisplayName(p))}</div><div class="row-sub">${esc(p.category)}</div></div>
       <div class="row-end"><span class="badge low">${p.stock} left</span></div></div>`).join('')}</div>` : ''}
 
     <div class="section-title">All Time</div>
@@ -276,7 +297,7 @@ function openSalesFilterSheet() {
 function getFilteredProducts() {
   let list = S.products.filter((p) => S.invCategory === 'All' || p.category === S.invCategory);
   const q = S.invSearch.trim().toLowerCase();
-  if (q) list = list.filter((p) => (p.name || '').toLowerCase().includes(q));
+  if (q) list = list.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.variant || '').toLowerCase().includes(q));
   return list;
 }
 function productRowsHtml(list) {
@@ -284,8 +305,9 @@ function productRowsHtml(list) {
     const low = Number(p.stock) <= Number(p.lowStockThreshold != null ? p.lowStockThreshold : S.settings.lowStock);
     return `
     <div class="row" data-product="${p.id}" style="cursor:pointer">
+      <div class="row-icon">${categoryIcon(p.category)}</div>
       <div class="row-main">
-        <div class="row-title">${esc(p.name)}</div>
+        <div class="row-title">${esc(productDisplayName(p))}</div>
         <div class="row-sub">${esc(p.category)} &middot; cost ${money(p.costPrice)} &middot; sells ${money(p.sellingPrice)}</div>
       </div>
       <div class="row-end"><span class="badge ${low ? 'low' : 'ok'}">${p.stock} in stock</span></div>
@@ -633,7 +655,7 @@ function closeSheet() { document.getElementById('modal-root').innerHTML = ''; }
 /* ---------- Sale form ---------- */
 function openSaleForm(saleId) {
   const editing = saleId ? S.sales.find((s) => s.id === saleId) : null;
-  const productOptions = S.products.map((p) => `<option value="${p.id}" ${editing && editing.productId === p.id ? 'selected' : ''}>${esc(p.name)} (${p.stock} in stock)</option>`).join('');
+  const productOptions = S.products.map((p) => `<option value="${p.id}" ${editing && editing.productId === p.id ? 'selected' : ''}>${esc(productDisplayName(p))} (${p.stock} in stock)</option>`).join('');
   const platformOptions = PLATFORMS.map((p) => `<option value="${p}" ${editing && editing.platform === p ? 'selected' : ''}>${p}</option>`).join('');
 
   openSheet(editing ? 'Edit Sale' : 'Log a Sale', `
@@ -696,7 +718,7 @@ function openSaleForm(saleId) {
 let orderItemNextIdx = 0;
 
 function orderItemHtml(idx) {
-  const productOptions = S.products.map((p) => `<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
+  const productOptions = S.products.map((p) => `<option value="${p.id}">${esc(productDisplayName(p))} (${p.stock} in stock)</option>`).join('');
   return `
     <div class="sale-item-block" data-idx="${idx}">
       <div class="sale-item-header">
@@ -810,7 +832,7 @@ function getOrderItemsData() {
     const productId = productSel.value || null;
     const product = productId ? S.products.find((p) => p.id === productId) : null;
     const customName = block.querySelector('.oi-customname').value.trim();
-    const productName = product ? product.name : customName;
+    const productName = product ? productDisplayName(product) : customName;
     return {
       productId, productName,
       qty: Number(block.querySelector('.oi-qty').value) || 0,
@@ -930,7 +952,7 @@ async function saveSale(editing) {
   const productId = document.getElementById('f-product').value || null;
   const product = productId ? S.products.find((p) => p.id === productId) : null;
   const customName = document.getElementById('f-customname').value.trim();
-  const productName = product ? product.name : customName;
+  const productName = product ? productDisplayName(product) : customName;
   if (!productName) { toast('Please select or type a product name'); return; }
   const qty = Number(document.getElementById('f-qty').value) || 0;
   if (qty <= 0) { toast('Quantity must be at least 1'); return; }
@@ -998,6 +1020,7 @@ function openProductForm(productId) {
   const catOptions = CATEGORIES.map((c) => `<option ${editing && editing.category === c ? 'selected' : ''}>${c}</option>`).join('');
   openSheet(editing ? 'Edit Product' : 'Add Product', `
     <label>Product name</label><input type="text" id="p-name" value="${editing ? esc(editing.name) : ''}">
+    <label>Variant (optional)</label><input type="text" id="p-variant" placeholder="e.g. 50ml, Rose scent, Pink" value="${editing ? esc(editing.variant || '') : ''}">
     <label>Category</label><select id="p-category">${catOptions}</select>
     <div class="field-row">
       <div><label>Cost price / unit</label><input type="number" step="0.01" id="p-cost" value="${editing ? editing.costPrice : ''}"></div>
@@ -1023,6 +1046,7 @@ async function saveProduct(editing) {
   const product = {
     id: editing ? editing.id : uid(),
     name,
+    variant: document.getElementById('p-variant').value.trim(),
     category: document.getElementById('p-category').value,
     costPrice: Number(document.getElementById('p-cost').value) || 0,
     sellingPrice: Number(document.getElementById('p-price').value) || 0,
@@ -1293,8 +1317,8 @@ function exportSalesCSV() {
   toast('Sales exported');
 }
 function exportProductsCSV() {
-  const headers = ['Name','Category','Cost Price','Selling Price','Stock','Low Stock Alert'];
-  const rows = S.products.map((p) => [p.name, p.category, p.costPrice, p.sellingPrice, p.stock, p.lowStockThreshold]);
+  const headers = ['Name','Variant','Category','Cost Price','Selling Price','Stock','Low Stock Alert'];
+  const rows = S.products.map((p) => [p.name, p.variant || '', p.category, p.costPrice, p.sellingPrice, p.stock, p.lowStockThreshold]);
   downloadFile(`stock-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
   toast('Stock exported');
 }
