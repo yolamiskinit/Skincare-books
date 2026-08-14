@@ -22,6 +22,18 @@ const DB = {
     const snap = await window.FB.getDocs(collRef(storeName));
     return snap.docs.map((d) => d.data());
   },
+  async getAllFromCache(storeName) {
+    try {
+      const snap = await window.FB.getDocsFromCache(collRef(storeName));
+      return snap.docs.map((d) => d.data());
+    } catch (e) {
+      return null; // this query has never been cached yet (e.g. first-ever sign in)
+    }
+  },
+  async getAllFromServer(storeName) {
+    const snap = await window.FB.getDocsFromServer(collRef(storeName));
+    return snap.docs.map((d) => d.data());
+  },
   async get(storeName, id) {
     const snap = await window.FB.getDoc(docRef(storeName, id));
     return snap.exists() ? snap.data() : undefined;

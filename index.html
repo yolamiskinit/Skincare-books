@@ -11,8 +11,14 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 </head>
 <body>
+<div id="boot-screen">
+  <div class="boot-spinner"></div>
+</div>
 <div id="auth-screen" style="display:none">
   <div class="topbar">
     <div>

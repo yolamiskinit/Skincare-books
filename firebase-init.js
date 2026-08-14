@@ -3,7 +3,8 @@ import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence
+  getFirestore, collection, doc, getDoc, getDocs, getDocsFromCache, getDocsFromServer,
+  setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -23,7 +24,7 @@ enableIndexedDbPersistence(firestore).catch(() => { /* multiple tabs open, or un
 window.FB = {
   auth,
   firestore,
-  collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch,
+  collection, doc, getDoc, getDocs, getDocsFromCache, getDocsFromServer, setDoc, deleteDoc, writeBatch,
   onAuthStateChanged: (cb) => onAuthStateChanged(auth, cb),
   signUp: (email, password) => createUserWithEmailAndPassword(auth, email, password),
   signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),

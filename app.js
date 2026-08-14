@@ -48,10 +48,7 @@ function yearBounds() {
 function inRange(dateStr, start, end) { return dateStr >= start && dateStr <= end; }
 
 /* ---------- Data load ---------- */
-async function loadAll() {
-  const [products, sales, expenses, metaRows, customers] = await Promise.all([
-    DB.getAll('products'), DB.getAll('sales'), DB.getAll('expenses'), DB.getAll('meta'), DB.getAll('customers')
-  ]);
+function applyLoadedData(products, sales, expenses, metaRows, customers) {
   S.products = products.sort((a, b) => a.name.localeCompare(b.name));
   S.sales = sales.sort((a, b) => (b.date + (b.createdAt||'')).localeCompare(a.date + (a.createdAt||'')));
   S.expenses = expenses.sort((a, b) => b.date.localeCompare(a.date));
@@ -61,6 +58,21 @@ async function loadAll() {
   if (meta.businessName) S.settings.businessName = meta.businessName;
   if (meta.lowStock != null) S.settings.lowStock = meta.lowStock;
   document.getElementById('business-name').textContent = S.settings.businessName;
+}
+async function loadAll() {
+  const [products, sales, expenses, metaRows, customers] = await Promise.all([
+    DB.getAll('products'), DB.getAll('sales'), DB.getAll('expenses'), DB.getAll('meta'), DB.getAll('customers')
+  ]);
+  applyLoadedData(products, sales, expenses, metaRows, customers);
+}
+// Instant paint from the on-device cache (no network wait). Returns false if nothing is cached yet
+// (e.g. first sign-in on a new device), in which case the caller should fall back to loadAll().
+async function loadAllFromCache() {
+  const names = ['products', 'sales', 'expenses', 'meta', 'customers'];
+  const rows = await Promise.all(names.map((n) => DB.getAllFromCache(n)));
+  if (rows.some((r) => r === null)) return false;
+  applyLoadedData(...rows);
+  return true;
 }
 async function saveMeta(key, value) { await DB.put('meta', { key, value }); }
 
@@ -1307,13 +1319,19 @@ async function clearAllData() {
 /* ---------- Auth ---------- */
 let authMode = 'signin';
 
+function hideBootScreen() {
+  const boot = document.getElementById('boot-screen');
+  if (boot) boot.remove();
+}
 function showAuthScreen() {
   document.getElementById('auth-screen').style.display = 'block';
   document.getElementById('app').style.display = 'none';
+  hideBootScreen();
 }
 function showApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  hideBootScreen();
 }
 function friendlyAuthError(err) {
   const code = (err && err.code) || '';
@@ -1357,9 +1375,16 @@ async function init() {
   setupAuthScreenHandlers();
   window.FB.onAuthStateChanged(async (user) => {
     if (user) {
-      showApp();
-      await loadAll();
-      setTab(S.tab || 'home');
+      const paintedFromCache = await loadAllFromCache();
+      if (paintedFromCache) {
+        showApp();
+        setTab(S.tab || 'home');
+        loadAll().then(() => render()).catch(() => {}); // quiet refresh from the server
+      } else {
+        await loadAll();
+        showApp();
+        setTab(S.tab || 'home');
+      }
     } else {
       showAuthScreen();
     }
