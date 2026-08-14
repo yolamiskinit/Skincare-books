@@ -6,7 +6,26 @@ const CATEGORY_ICONS = {
   "Sunscreen": "☀️", "Belgium Goods": "🇧🇪", "Bundles": "🎁", "Other": "📦"
 };
 function categoryIcon(cat) { return CATEGORY_ICONS[cat] || "📦"; }
-function productDisplayName(p) { return p && p.variant ? `${p.name} — ${p.variant}` : (p ? p.name : ''); }
+function productDisplayName(product, variant) { return variant ? `${product.name} — ${variant.label}` : (product ? product.name : ''); }
+function productVariants(product) { return (product && product.variants) || []; }
+function productTotalStock(product) {
+  const variants = productVariants(product);
+  return variants.length ? variants.reduce((a, v) => a + (Number(v.stock) || 0), 0) : (Number(product.stock) || 0);
+}
+function stockItemsFor(product) {
+  const variants = productVariants(product);
+  if (variants.length) {
+    return variants.map((v) => ({ product, variant: v, displayName: productDisplayName(product, v), stock: Number(v.stock) || 0 }));
+  }
+  return [{ product, variant: null, displayName: productDisplayName(product, null), stock: Number(product.stock) || 0 }];
+}
+function allStockItems() { return S.products.flatMap(stockItemsFor); }
+function findVariant(productId, variantId) {
+  const product = S.products.find((p) => p.id === productId);
+  if (!product) return { product: null, variant: null };
+  const variant = variantId ? productVariants(product).find((v) => v.id === variantId) : null;
+  return { product, variant };
+}
 const PLATFORMS = ["TikTok","Instagram","Facebook","WhatsApp","eBay","Website","Other"];
 const EXPENSE_CATEGORIES = ["Stock Purchase","Shipping & Packaging","Subscriptions","Business Registration","Marketing","Other"];
 const ORDER_STATUSES = ["Pending","Packed","Posted","Delivered","Completed"];
@@ -126,7 +145,7 @@ function renderHome() {
   const net = profit - expTotal;
   const pending = S.sales.filter((s) => s.paymentStatus === 'Pending');
   const pendingTotal = pending.reduce((a, s) => a + s.earned, 0);
-  const lowStock = S.products.filter((p) => Number(p.stock) <= Number(p.lowStockThreshold != null ? p.lowStockThreshold : S.settings.lowStock));
+  const lowStock = allStockItems().filter((it) => it.stock <= Number(it.product.lowStockThreshold != null ? it.product.lowStockThreshold : S.settings.lowStock));
   const todaySales = S.sales.filter((s) => s.date === todayISO());
 
   const g = greeting();
@@ -158,11 +177,11 @@ function renderHome() {
       <div class="row-end"><span class="badge ${lowStock.length ? 'low' : 'ok'}">${lowStock.length ? 'Check stock' : 'All good'}</span></div></div>
     </div>
 
-    ${lowStock.length ? `<div class="card"><h3>Low Stock</h3>${lowStock.map((p) => `
-      <div class="row" data-home-product="${p.id}" style="cursor:pointer">
-        <div class="row-icon">${categoryIcon(p.category)}</div>
-        <div class="row-main"><div class="row-title">${esc(productDisplayName(p))}</div><div class="row-sub">${esc(p.category)}</div></div>
-      <div class="row-end"><span class="badge low">${p.stock} left</span></div></div>`).join('')}</div>` : ''}
+    ${lowStock.length ? `<div class="card"><h3>Low Stock</h3>${lowStock.map((it) => `
+      <div class="row" data-home-product="${it.product.id}" style="cursor:pointer">
+        <div class="row-icon">${categoryIcon(it.product.category)}</div>
+        <div class="row-main"><div class="row-title">${esc(it.displayName)}</div><div class="row-sub">${esc(it.product.category)}</div></div>
+      <div class="row-end"><span class="badge low">${it.stock} left</span></div></div>`).join('')}</div>` : ''}
 
     <div class="section-title">All Time</div>
     <div class="stat-grid">
@@ -294,29 +313,29 @@ function openSalesFilterSheet() {
 }
 
 /* ---------- INVENTORY ---------- */
-function getFilteredProducts() {
-  let list = S.products.filter((p) => S.invCategory === 'All' || p.category === S.invCategory);
+function getFilteredStockItems() {
+  let items = allStockItems().filter((it) => S.invCategory === 'All' || it.product.category === S.invCategory);
   const q = S.invSearch.trim().toLowerCase();
-  if (q) list = list.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.variant || '').toLowerCase().includes(q));
-  return list;
+  if (q) items = items.filter((it) => it.displayName.toLowerCase().includes(q));
+  return items;
 }
-function productRowsHtml(list) {
-  const rows = list.map((p) => {
-    const low = Number(p.stock) <= Number(p.lowStockThreshold != null ? p.lowStockThreshold : S.settings.lowStock);
+function productRowsHtml(items) {
+  const rows = items.map((it) => {
+    const low = it.stock <= Number(it.product.lowStockThreshold != null ? it.product.lowStockThreshold : S.settings.lowStock);
     return `
-    <div class="row" data-product="${p.id}" style="cursor:pointer">
-      <div class="row-icon">${categoryIcon(p.category)}</div>
+    <div class="row" data-product="${it.product.id}" style="cursor:pointer">
+      <div class="row-icon">${categoryIcon(it.product.category)}</div>
       <div class="row-main">
-        <div class="row-title">${esc(productDisplayName(p))}</div>
-        <div class="row-sub">${esc(p.category)} &middot; cost ${money(p.costPrice)} &middot; sells ${money(p.sellingPrice)}</div>
+        <div class="row-title">${esc(it.displayName)}</div>
+        <div class="row-sub">${esc(it.product.category)} &middot; cost ${money(it.product.costPrice)} &middot; sells ${money(it.product.sellingPrice)}</div>
       </div>
-      <div class="row-end"><span class="badge ${low ? 'low' : 'ok'}">${p.stock} in stock</span></div>
+      <div class="row-end"><span class="badge ${low ? 'low' : 'ok'}">${it.stock} in stock</span></div>
     </div>`;
   }).join('');
   return rows || emptyState('No products match', 'Try a different search or category');
 }
 function refreshInventoryList() {
-  const list = getFilteredProducts();
+  const list = getFilteredStockItems();
   document.getElementById('inventory-list').innerHTML = productRowsHtml(list);
   bindInventoryRowClicks();
 }
@@ -330,7 +349,7 @@ function renderInventory() {
       <input type="text" id="inventory-search" placeholder="Search products..." value="${esc(S.invSearch)}">
     </div>
     <div class="chips">${cats.map((c) => `<div class="chip ${S.invCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</div>`).join('')}</div>
-    <div class="card" id="inventory-list">${productRowsHtml(getFilteredProducts())}</div>
+    <div class="card" id="inventory-list">${productRowsHtml(getFilteredStockItems())}</div>
   `;
 }
 
@@ -655,7 +674,7 @@ function closeSheet() { document.getElementById('modal-root').innerHTML = ''; }
 /* ---------- Sale form ---------- */
 function openSaleForm(saleId) {
   const editing = saleId ? S.sales.find((s) => s.id === saleId) : null;
-  const productOptions = S.products.map((p) => `<option value="${p.id}" ${editing && editing.productId === p.id ? 'selected' : ''}>${esc(productDisplayName(p))} (${p.stock} in stock)</option>`).join('');
+  const productOptions = S.products.map((p) => `<option value="${p.id}" ${editing && editing.productId === p.id ? 'selected' : ''}>${esc(p.name)} (${productTotalStock(p)} in stock)</option>`).join('');
   const platformOptions = PLATFORMS.map((p) => `<option value="${p}" ${editing && editing.platform === p ? 'selected' : ''}>${p}</option>`).join('');
 
   openSheet(editing ? 'Edit Sale' : 'Log a Sale', `
@@ -668,6 +687,10 @@ function openSaleForm(saleId) {
     </div>
     <label>Product</label>
     <select id="f-product"><option value="">-- Custom / not in inventory --</option>${productOptions}</select>
+    <div id="f-variant-wrap" style="display:none">
+      <label>Variant</label>
+      <select id="f-variant"></select>
+    </div>
     <label>Product name (if custom)</label><input type="text" id="f-customname" value="${editing && !editing.productId ? esc(editing.productName) : ''}" placeholder="Type product name">
     <div class="field-row">
       <div><label>Qty</label><input type="number" id="f-qty" min="1" value="${editing ? editing.qty : 1}"></div>
@@ -700,12 +723,25 @@ function openSaleForm(saleId) {
     ${editing ? '<button class="btn danger" id="delete-sale-btn">Delete Sale</button>' : ''}
   `);
 
+  function populateSaleVariantSelect(product, selectedVariantId) {
+    const wrap = document.getElementById('f-variant-wrap');
+    const sel = document.getElementById('f-variant');
+    const variants = productVariants(product);
+    if (!product || !variants.length) { wrap.style.display = 'none'; sel.innerHTML = ''; return; }
+    sel.innerHTML = variants.map((v) => `<option value="${v.id}" ${v.id === selectedVariantId ? 'selected' : ''}>${esc(v.label)} (${v.stock} in stock)</option>`).join('');
+    wrap.style.display = '';
+  }
   const productSelect = document.getElementById('f-product');
   productSelect.addEventListener('change', () => {
     const p = S.products.find((x) => x.id === productSelect.value);
+    populateSaleVariantSelect(p, null);
     if (p) { document.getElementById('f-sellingprice').value = p.sellingPrice; document.getElementById('f-cost').value = p.costPrice; }
     recalcSaleForm();
   });
+  document.getElementById('f-variant').addEventListener('change', recalcSaleForm);
+  if (productSelect.value) {
+    populateSaleVariantSelect(S.products.find((x) => x.id === productSelect.value), editing ? editing.variantId : null);
+  }
   ['f-qty', 'f-sellingprice', 'f-shipcharged', 'f-fee', 'f-cost', 'f-shipcost'].forEach((id) => document.getElementById(id).addEventListener('input', recalcSaleForm));
   recalcSaleForm();
 
@@ -718,7 +754,7 @@ function openSaleForm(saleId) {
 let orderItemNextIdx = 0;
 
 function orderItemHtml(idx) {
-  const productOptions = S.products.map((p) => `<option value="${p.id}">${esc(productDisplayName(p))} (${p.stock} in stock)</option>`).join('');
+  const productOptions = S.products.map((p) => `<option value="${p.id}">${esc(p.name)} (${productTotalStock(p)} in stock)</option>`).join('');
   return `
     <div class="sale-item-block" data-idx="${idx}">
       <div class="sale-item-header">
@@ -727,6 +763,10 @@ function orderItemHtml(idx) {
       </div>
       <label>Product</label>
       <select class="oi-product" data-idx="${idx}"><option value="">-- Custom / not in inventory --</option>${productOptions}</select>
+      <div class="oi-variant-wrap" data-idx="${idx}" style="display:none">
+        <label>Variant</label>
+        <select class="oi-variant" data-idx="${idx}"></select>
+      </div>
       <label>Product name (if custom)</label><input type="text" class="oi-customname" data-idx="${idx}" placeholder="Type product name">
       <div class="field-row">
         <div><label>Qty</label><input type="number" class="oi-qty" data-idx="${idx}" min="1" value="1"></div>
@@ -797,6 +837,8 @@ function duplicateSaleAsOrder(sale) {
   const productSelect = block.querySelector('.oi-product');
   if (sale.productId && S.products.some((p) => p.id === sale.productId)) {
     productSelect.value = sale.productId;
+    const p = S.products.find((x) => x.id === sale.productId);
+    populateOiVariantSelect(block, p, sale.variantId);
   } else {
     block.querySelector('.oi-customname').value = sale.productName;
   }
@@ -807,12 +849,22 @@ function duplicateSaleAsOrder(sale) {
   toast('Review the details and tap Save Order');
 }
 
+function populateOiVariantSelect(block, product, selectedVariantId) {
+  const wrap = block.querySelector('.oi-variant-wrap');
+  const sel = block.querySelector('.oi-variant');
+  const variants = productVariants(product);
+  if (!product || !variants.length) { wrap.style.display = 'none'; sel.innerHTML = ''; return; }
+  sel.innerHTML = variants.map((v) => `<option value="${v.id}" ${v.id === selectedVariantId ? 'selected' : ''}>${esc(v.label)} (${v.stock} in stock)</option>`).join('');
+  wrap.style.display = '';
+}
 function bindOrderItemsContainer() {
   const container = document.getElementById('order-items');
   container.querySelectorAll('.oi-product').forEach((sel) => {
     sel.onchange = () => {
       const p = S.products.find((x) => x.id === sel.value);
       const idx = sel.dataset.idx;
+      const block = sel.closest('.sale-item-block');
+      populateOiVariantSelect(block, p, null);
       if (p) {
         container.querySelector(`.oi-sellingprice[data-idx="${idx}"]`).value = p.sellingPrice;
         container.querySelector(`.oi-cost[data-idx="${idx}"]`).value = p.costPrice;
@@ -820,6 +872,7 @@ function bindOrderItemsContainer() {
       recalcOrderTotals();
     };
   });
+  container.querySelectorAll('.oi-variant').forEach((sel) => { sel.onchange = recalcOrderTotals; });
   container.querySelectorAll('.oi-qty, .oi-sellingprice, .oi-cost').forEach((el) => { el.oninput = recalcOrderTotals; });
   container.querySelectorAll('[data-remove-item]').forEach((btn) => {
     btn.onclick = () => { btn.closest('.sale-item-block').remove(); recalcOrderTotals(); };
@@ -831,10 +884,14 @@ function getOrderItemsData() {
     const productSel = block.querySelector('.oi-product');
     const productId = productSel.value || null;
     const product = productId ? S.products.find((p) => p.id === productId) : null;
+    const hasVariants = product && productVariants(product).length > 0;
+    const variantSel = block.querySelector('.oi-variant');
+    const variantId = hasVariants ? (variantSel.value || null) : null;
+    const variant = hasVariants && variantId ? productVariants(product).find((v) => v.id === variantId) : null;
     const customName = block.querySelector('.oi-customname').value.trim();
-    const productName = product ? productDisplayName(product) : customName;
+    const productName = product ? productDisplayName(product, variant) : customName;
     return {
-      productId, productName,
+      productId, variantId, productName,
       qty: Number(block.querySelector('.oi-qty').value) || 0,
       sellingPrice: Number(block.querySelector('.oi-sellingprice').value) || 0,
       productCost: Number(block.querySelector('.oi-cost').value) || 0
@@ -879,7 +936,7 @@ async function saveNewOrder() {
     const profit = earned - (it.productCost * it.qty);
     const sale = {
       id: uid(), date, platform, customer, orderNo,
-      productId: it.productId, productName: it.productName, qty: it.qty,
+      productId: it.productId, variantId: it.variantId, productName: it.productName, qty: it.qty,
       sellingPrice: it.sellingPrice,
       shippingCharged: isFirst ? shippingCharged : 0,
       platformFee: isFirst ? platformFee : 0,
@@ -890,8 +947,9 @@ async function saveNewOrder() {
     };
     await DB.put('sales', sale);
     if (it.productId) {
-      const p = S.products.find((x) => x.id === it.productId);
-      if (p) { p.stock = Number(p.stock) - it.qty; await DB.put('products', p); }
+      const { product: p, variant: v } = findVariant(it.productId, it.variantId);
+      if (v) { v.stock = Number(v.stock) - it.qty; await DB.put('products', p); }
+      else if (p) { p.stock = Number(p.stock) - it.qty; await DB.put('products', p); }
     }
   }
 
@@ -951,8 +1009,12 @@ function recalcSaleForm() {
 async function saveSale(editing) {
   const productId = document.getElementById('f-product').value || null;
   const product = productId ? S.products.find((p) => p.id === productId) : null;
+  const hasVariants = product && productVariants(product).length > 0;
+  const variantId = hasVariants ? (document.getElementById('f-variant').value || null) : null;
+  const variant = hasVariants && variantId ? productVariants(product).find((v) => v.id === variantId) : null;
+  if (hasVariants && !variant) { toast('Please pick a variant'); return; }
   const customName = document.getElementById('f-customname').value.trim();
-  const productName = product ? productDisplayName(product) : customName;
+  const productName = product ? productDisplayName(product, variant) : customName;
   if (!productName) { toast('Please select or type a product name'); return; }
   const qty = Number(document.getElementById('f-qty').value) || 0;
   if (qty <= 0) { toast('Quantity must be at least 1'); return; }
@@ -970,7 +1032,7 @@ async function saveSale(editing) {
     platform: document.getElementById('f-platform').value,
     customer: document.getElementById('f-customer').value.trim(),
     orderNo: document.getElementById('f-orderno').value.trim(),
-    productId, productName, qty, sellingPrice, shippingCharged, platformFee, productCost, shippingCost, earned, profit,
+    productId, variantId, productName, qty, sellingPrice, shippingCharged, platformFee, productCost, shippingCost, earned, profit,
     paymentStatus: document.getElementById('f-status').value,
     paymentDate: document.getElementById('f-paydate').value || '',
     orderStatus: document.getElementById('f-orderstatus').value,
@@ -978,14 +1040,16 @@ async function saveSale(editing) {
     createdAt: editing ? editing.createdAt : new Date().toISOString()
   };
 
-  // Adjust stock: restore old product's stock (if editing), then deduct from new selection
+  // Adjust stock: restore old product/variant's stock (if editing), then deduct from new selection
   if (editing && editing.productId) {
-    const oldProduct = S.products.find((p) => p.id === editing.productId);
-    if (oldProduct) { oldProduct.stock = Number(oldProduct.stock) + Number(editing.qty); await DB.put('products', oldProduct); }
+    const { product: oldProduct, variant: oldVariant } = findVariant(editing.productId, editing.variantId);
+    if (oldVariant) { oldVariant.stock = Number(oldVariant.stock) + Number(editing.qty); await DB.put('products', oldProduct); }
+    else if (oldProduct) { oldProduct.stock = Number(oldProduct.stock) + Number(editing.qty); await DB.put('products', oldProduct); }
   }
   if (productId) {
-    const p = S.products.find((x) => x.id === productId);
-    if (p) { p.stock = Number(p.stock) - qty; await DB.put('products', p); }
+    const { product: p, variant: v } = findVariant(productId, variantId);
+    if (v) { v.stock = Number(v.stock) - qty; await DB.put('products', p); }
+    else if (p) { p.stock = Number(p.stock) - qty; await DB.put('products', p); }
   }
 
   await DB.put('sales', sale);
@@ -1004,8 +1068,9 @@ async function saveSale(editing) {
 async function deleteSale(sale) {
   if (!confirm('Delete this sale? This cannot be undone.')) return;
   if (sale.productId) {
-    const p = S.products.find((x) => x.id === sale.productId);
-    if (p) { p.stock = Number(p.stock) + Number(sale.qty); await DB.put('products', p); }
+    const { product: p, variant: v } = findVariant(sale.productId, sale.variantId);
+    if (v) { v.stock = Number(v.stock) + Number(sale.qty); await DB.put('products', p); }
+    else if (p) { p.stock = Number(p.stock) + Number(sale.qty); await DB.put('products', p); }
   }
   await DB.delete('sales', sale.id);
   closeSheet();
@@ -1015,42 +1080,89 @@ async function deleteSale(sale) {
 }
 
 /* ---------- Product form ---------- */
+let variantRowNextIdx = 0;
+function variantRowHtml(idx, variant) {
+  const vid = variant ? variant.id : uid();
+  return `
+    <div class="variant-row" data-vidx="${idx}" data-vid="${vid}">
+      <input type="text" class="v-label" placeholder="e.g. 30ml, Rose, Pink" value="${variant ? esc(variant.label) : ''}">
+      <input type="number" class="v-stock" placeholder="Stock" value="${variant ? variant.stock : 0}">
+      <button type="button" class="remove-variant-btn" data-remove-variant="1">&times;</button>
+    </div>`;
+}
+function toggleSimpleStockVisibility() {
+  const wrap = document.getElementById('simple-stock-wrap');
+  if (!wrap) return;
+  const hasRows = document.querySelectorAll('#variant-list .variant-row').length > 0;
+  wrap.style.display = hasRows ? 'none' : '';
+}
+function bindVariantRows() {
+  document.querySelectorAll('[data-remove-variant]').forEach((btn) => {
+    btn.onclick = () => { btn.closest('.variant-row').remove(); toggleSimpleStockVisibility(); };
+  });
+}
 function openProductForm(productId) {
   const editing = productId ? S.products.find((p) => p.id === productId) : null;
   const catOptions = CATEGORIES.map((c) => `<option ${editing && editing.category === c ? 'selected' : ''}>${c}</option>`).join('');
+  const existingVariants = editing ? productVariants(editing) : [];
+  variantRowNextIdx = existingVariants.length;
+  const hasVariants = existingVariants.length > 0;
   openSheet(editing ? 'Edit Product' : 'Add Product', `
     <label>Product name</label><input type="text" id="p-name" value="${editing ? esc(editing.name) : ''}">
-    <label>Variant (optional)</label><input type="text" id="p-variant" placeholder="e.g. 50ml, Rose scent, Pink" value="${editing ? esc(editing.variant || '') : ''}">
     <label>Category</label><select id="p-category">${catOptions}</select>
     <div class="field-row">
       <div><label>Cost price / unit</label><input type="number" step="0.01" id="p-cost" value="${editing ? editing.costPrice : ''}"></div>
       <div><label>Selling price / unit</label><input type="number" step="0.01" id="p-price" value="${editing ? editing.sellingPrice : ''}"></div>
     </div>
-    <div class="field-row">
-      <div><label>Current stock</label><input type="number" id="p-stock" value="${editing ? editing.stock : 0}"></div>
-      <div><label>Low stock alert below</label><input type="number" id="p-lowstock" value="${editing ? (editing.lowStockThreshold != null ? editing.lowStockThreshold : S.settings.lowStock) : S.settings.lowStock}"></div>
+
+    <div class="section-title">Variants (optional)</div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 8px">Add a row per size, shade or scent, each with its own stock count. Leave empty for a single simple product.</p>
+    <div id="variant-list">${existingVariants.map((v, i) => variantRowHtml(i, v)).join('')}</div>
+    <button type="button" class="link-btn" id="add-variant-btn">+ Add Variant</button>
+
+    <div id="simple-stock-wrap" style="${hasVariants ? 'display:none' : ''}">
+      <div class="field-row">
+        <div><label>Current stock</label><input type="number" id="p-stock" value="${editing ? editing.stock : 0}"></div>
+      </div>
     </div>
+    <label>Low stock alert below</label><input type="number" id="p-lowstock" value="${editing ? (editing.lowStockThreshold != null ? editing.lowStockThreshold : S.settings.lowStock) : S.settings.lowStock}">
+
     <button class="btn primary" id="save-product-btn">${editing ? 'Save Changes' : 'Add Product'}</button>
-    ${editing ? '<button class="btn secondary" id="restock-btn">+ Add Stock (restock)</button><button class="btn danger" id="delete-product-btn">Delete Product</button>' : ''}
+    ${editing && !hasVariants ? '<button class="btn secondary" id="restock-btn">+ Add Stock (restock)</button>' : ''}
+    ${editing ? '<button class="btn danger" id="delete-product-btn">Delete Product</button>' : ''}
   `);
+  bindVariantRows();
+  document.getElementById('add-variant-btn').addEventListener('click', () => {
+    document.getElementById('variant-list').insertAdjacentHTML('beforeend', variantRowHtml(variantRowNextIdx, null));
+    variantRowNextIdx++;
+    bindVariantRows();
+    toggleSimpleStockVisibility();
+  });
   document.getElementById('save-product-btn').addEventListener('click', () => saveProduct(editing));
   if (editing) {
     document.getElementById('delete-product-btn').addEventListener('click', () => deleteProduct(editing));
-    document.getElementById('restock-btn').addEventListener('click', () => restockProduct(editing));
+    const restockBtn = document.getElementById('restock-btn');
+    if (restockBtn) restockBtn.addEventListener('click', () => restockProduct(editing));
   }
 }
 
 async function saveProduct(editing) {
   const name = document.getElementById('p-name').value.trim();
   if (!name) { toast('Please enter a product name'); return; }
+  const variantRows = [...document.querySelectorAll('#variant-list .variant-row')].map((row) => ({
+    id: row.dataset.vid,
+    label: row.querySelector('.v-label').value.trim(),
+    stock: Number(row.querySelector('.v-stock').value) || 0
+  })).filter((v) => v.label);
+
   const product = {
     id: editing ? editing.id : uid(),
     name,
-    variant: document.getElementById('p-variant').value.trim(),
     category: document.getElementById('p-category').value,
     costPrice: Number(document.getElementById('p-cost').value) || 0,
     sellingPrice: Number(document.getElementById('p-price').value) || 0,
-    stock: Number(document.getElementById('p-stock').value) || 0,
+    variants: variantRows,
+    stock: variantRows.length ? variantRows.reduce((a, v) => a + v.stock, 0) : (Number(document.getElementById('p-stock').value) || 0),
     lowStockThreshold: Number(document.getElementById('p-lowstock').value) || 0,
     createdAt: editing ? editing.createdAt : new Date().toISOString()
   };
@@ -1318,7 +1430,7 @@ function exportSalesCSV() {
 }
 function exportProductsCSV() {
   const headers = ['Name','Variant','Category','Cost Price','Selling Price','Stock','Low Stock Alert'];
-  const rows = S.products.map((p) => [p.name, p.variant || '', p.category, p.costPrice, p.sellingPrice, p.stock, p.lowStockThreshold]);
+  const rows = allStockItems().map((it) => [it.product.name, it.variant ? it.variant.label : '', it.product.category, it.product.costPrice, it.product.sellingPrice, it.stock, it.product.lowStockThreshold]);
   downloadFile(`stock-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
   toast('Stock exported');
 }
