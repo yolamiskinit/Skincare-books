@@ -215,6 +215,29 @@ textarea { resize: vertical; min-height: 60px; }
 .computed-box .item .lab { font-size: 11px; color: var(--pink-dark); font-weight: 700; }
 .computed-box .item .val { font-size: 17px; font-weight: 800; color: var(--pink-dark); margin-top: 2px; }
 
+.combo-wrap { position: relative; }
+.combo-input { padding-right: 36px; }
+.combo-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: var(--pink-light); color: var(--pink-dark); font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.combo-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  max-height: 220px; overflow-y: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  display: none;
+}
+.combo-item {
+  padding: 10px 12px; font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; border-bottom: 1px solid var(--border);
+}
+.combo-item:last-child { border-bottom: none; }
+.combo-item:active { background: var(--pink-light); }
+.combo-item-stock { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+.combo-empty { padding: 12px; font-size: 13px; color: var(--muted); text-align: center; }
+
 .variant-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .variant-row .v-label { flex: 2; }
 .variant-row .v-stock { flex: 1; }

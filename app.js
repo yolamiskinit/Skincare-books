@@ -672,9 +672,44 @@ function openSheet(title, bodyHtml) {
 function closeSheet() { document.getElementById('modal-root').innerHTML = ''; }
 
 /* ---------- Sale form ---------- */
+// A searchable product picker: a text input that filters S.products as you type, a suggestions
+// dropdown, and a clear (x) button. hiddenEl holds the resolved productId, same as a <select> would.
+function setupProductCombo(inputEl, clearEl, listEl, hiddenEl, onChosen) {
+  function renderList(filterText) {
+    const q = (filterText || '').trim().toLowerCase();
+    const matches = q ? S.products.filter((p) => p.name.toLowerCase().includes(q)) : S.products;
+    listEl.innerHTML = matches.length
+      ? matches.slice(0, 30).map((p) => `<div class="combo-item" data-pid="${p.id}">${esc(p.name)} <span class="combo-item-stock">${productTotalStock(p)} in stock</span></div>`).join('')
+      : `<div class="combo-empty">No matching products</div>`;
+    listEl.style.display = 'block';
+    listEl.querySelectorAll('.combo-item').forEach((el) => {
+      el.onmousedown = (e) => {
+        e.preventDefault();
+        selectProduct(S.products.find((x) => x.id === el.dataset.pid));
+      };
+    });
+  }
+  function selectProduct(p) {
+    hiddenEl.value = p ? p.id : '';
+    inputEl.value = p ? p.name : '';
+    clearEl.style.display = inputEl.value ? '' : 'none';
+    listEl.style.display = 'none';
+    onChosen(p);
+  }
+  inputEl.onfocus = () => renderList(inputEl.value);
+  inputEl.oninput = () => {
+    hiddenEl.value = '';
+    clearEl.style.display = inputEl.value ? '' : 'none';
+    renderList(inputEl.value);
+    onChosen(null);
+  };
+  inputEl.onblur = () => { setTimeout(() => { listEl.style.display = 'none'; }, 150); };
+  clearEl.onclick = () => { inputEl.value = ''; selectProduct(null); inputEl.focus(); };
+}
+
 function openSaleForm(saleId) {
   const editing = saleId ? S.sales.find((s) => s.id === saleId) : null;
-  const productOptions = S.products.map((p) => `<option value="${p.id}" ${editing && editing.productId === p.id ? 'selected' : ''}>${esc(p.name)} (${productTotalStock(p)} in stock)</option>`).join('');
+  const editingProduct = editing && editing.productId ? S.products.find((p) => p.id === editing.productId) : null;
   const platformOptions = PLATFORMS.map((p) => `<option value="${p}" ${editing && editing.platform === p ? 'selected' : ''}>${p}</option>`).join('');
 
   openSheet(editing ? 'Edit Sale' : 'Log a Sale', `
@@ -686,7 +721,12 @@ function openSaleForm(saleId) {
       <div><label>Order No (optional)</label><input type="text" id="f-orderno" value="${editing ? esc(editing.orderNo || '') : ''}"></div>
     </div>
     <label>Product</label>
-    <select id="f-product"><option value="">-- Custom / not in inventory --</option>${productOptions}</select>
+    <div class="combo-wrap">
+      <input type="text" id="f-product-search" class="combo-input" placeholder="Search products..." autocomplete="off" value="${editingProduct ? esc(editingProduct.name) : ''}">
+      <button type="button" class="combo-clear" id="f-product-clear" style="${editingProduct ? '' : 'display:none'}">&times;</button>
+      <div class="combo-list" id="f-product-list"></div>
+    </div>
+    <input type="hidden" id="f-product" value="${editingProduct ? editingProduct.id : ''}">
     <div id="f-variant-wrap" style="display:none">
       <label>Variant</label>
       <select id="f-variant"></select>
@@ -731,16 +771,21 @@ function openSaleForm(saleId) {
     sel.innerHTML = variants.map((v) => `<option value="${v.id}" ${v.id === selectedVariantId ? 'selected' : ''}>${esc(v.label)} (${v.stock} in stock)</option>`).join('');
     wrap.style.display = '';
   }
-  const productSelect = document.getElementById('f-product');
-  productSelect.addEventListener('change', () => {
-    const p = S.products.find((x) => x.id === productSelect.value);
-    populateSaleVariantSelect(p, null);
-    if (p) { document.getElementById('f-sellingprice').value = p.sellingPrice; document.getElementById('f-cost').value = p.costPrice; }
-    recalcSaleForm();
-  });
+  const productHidden = document.getElementById('f-product');
+  setupProductCombo(
+    document.getElementById('f-product-search'),
+    document.getElementById('f-product-clear'),
+    document.getElementById('f-product-list'),
+    productHidden,
+    (p) => {
+      populateSaleVariantSelect(p, null);
+      if (p) { document.getElementById('f-sellingprice').value = p.sellingPrice; document.getElementById('f-cost').value = p.costPrice; }
+      recalcSaleForm();
+    }
+  );
   document.getElementById('f-variant').addEventListener('change', recalcSaleForm);
-  if (productSelect.value) {
-    populateSaleVariantSelect(S.products.find((x) => x.id === productSelect.value), editing ? editing.variantId : null);
+  if (productHidden.value) {
+    populateSaleVariantSelect(S.products.find((x) => x.id === productHidden.value), editing ? editing.variantId : null);
   }
   ['f-qty', 'f-sellingprice', 'f-shipcharged', 'f-fee', 'f-cost', 'f-shipcost'].forEach((id) => document.getElementById(id).addEventListener('input', recalcSaleForm));
   recalcSaleForm();
@@ -754,7 +799,6 @@ function openSaleForm(saleId) {
 let orderItemNextIdx = 0;
 
 function orderItemHtml(idx) {
-  const productOptions = S.products.map((p) => `<option value="${p.id}">${esc(p.name)} (${productTotalStock(p)} in stock)</option>`).join('');
   return `
     <div class="sale-item-block" data-idx="${idx}">
       <div class="sale-item-header">
@@ -762,7 +806,12 @@ function orderItemHtml(idx) {
         <button type="button" class="remove-item-btn" data-remove-item="${idx}" style="${idx === 0 ? 'display:none' : ''}">Remove</button>
       </div>
       <label>Product</label>
-      <select class="oi-product" data-idx="${idx}"><option value="">-- Custom / not in inventory --</option>${productOptions}</select>
+      <div class="combo-wrap">
+        <input type="text" class="oi-product-search combo-input" data-idx="${idx}" placeholder="Search products..." autocomplete="off">
+        <button type="button" class="combo-clear oi-product-clear" data-idx="${idx}" style="display:none">&times;</button>
+        <div class="combo-list oi-product-list" data-idx="${idx}"></div>
+      </div>
+      <input type="hidden" class="oi-product" data-idx="${idx}">
       <div class="oi-variant-wrap" data-idx="${idx}" style="display:none">
         <label>Variant</label>
         <select class="oi-variant" data-idx="${idx}"></select>
@@ -834,10 +883,11 @@ function duplicateSaleAsOrder(sale) {
   openNewOrderForm(sale.customer);
   document.getElementById('f-platform').value = sale.platform;
   const block = document.querySelector('#order-items .sale-item-block');
-  const productSelect = block.querySelector('.oi-product');
   if (sale.productId && S.products.some((p) => p.id === sale.productId)) {
-    productSelect.value = sale.productId;
     const p = S.products.find((x) => x.id === sale.productId);
+    block.querySelector('.oi-product').value = sale.productId;
+    block.querySelector('.oi-product-search').value = p.name;
+    block.querySelector('.oi-product-clear').style.display = '';
     populateOiVariantSelect(block, p, sale.variantId);
   } else {
     block.querySelector('.oi-customname').value = sale.productName;
@@ -859,18 +909,21 @@ function populateOiVariantSelect(block, product, selectedVariantId) {
 }
 function bindOrderItemsContainer() {
   const container = document.getElementById('order-items');
-  container.querySelectorAll('.oi-product').forEach((sel) => {
-    sel.onchange = () => {
-      const p = S.products.find((x) => x.id === sel.value);
-      const idx = sel.dataset.idx;
-      const block = sel.closest('.sale-item-block');
-      populateOiVariantSelect(block, p, null);
-      if (p) {
-        container.querySelector(`.oi-sellingprice[data-idx="${idx}"]`).value = p.sellingPrice;
-        container.querySelector(`.oi-cost[data-idx="${idx}"]`).value = p.costPrice;
+  container.querySelectorAll('.sale-item-block').forEach((block) => {
+    setupProductCombo(
+      block.querySelector('.oi-product-search'),
+      block.querySelector('.oi-product-clear'),
+      block.querySelector('.oi-product-list'),
+      block.querySelector('.oi-product'),
+      (p) => {
+        populateOiVariantSelect(block, p, null);
+        if (p) {
+          block.querySelector('.oi-sellingprice').value = p.sellingPrice;
+          block.querySelector('.oi-cost').value = p.costPrice;
+        }
+        recalcOrderTotals();
       }
-      recalcOrderTotals();
-    };
+    );
   });
   container.querySelectorAll('.oi-variant').forEach((sel) => { sel.onchange = recalcOrderTotals; });
   container.querySelectorAll('.oi-qty, .oi-sellingprice, .oi-cost').forEach((el) => { el.oninput = recalcOrderTotals; });
