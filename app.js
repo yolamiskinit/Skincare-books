@@ -674,6 +674,16 @@ function closeSheet() { document.getElementById('modal-root').innerHTML = ''; }
 /* ---------- Sale form ---------- */
 // A searchable product picker: a text input that filters S.products as you type, a suggestions
 // dropdown, and a clear (x) button. hiddenEl holds the resolved productId, same as a <select> would.
+// Closes any open combo-list on a tap/click outside its combo-wrap. A single delegated listener
+// (rather than a blur-timeout race) so selection is reliable on touch devices, not just mouse.
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.combo-list').forEach((listEl) => {
+    if (listEl.style.display !== 'none' && !listEl.closest('.combo-wrap').contains(e.target)) {
+      listEl.style.display = 'none';
+    }
+  });
+});
+
 function setupProductCombo(inputEl, clearEl, listEl, hiddenEl, onChosen) {
   function renderList(filterText) {
     const q = (filterText || '').trim().toLowerCase();
@@ -683,10 +693,7 @@ function setupProductCombo(inputEl, clearEl, listEl, hiddenEl, onChosen) {
       : `<div class="combo-empty">No matching products</div>`;
     listEl.style.display = 'block';
     listEl.querySelectorAll('.combo-item').forEach((el) => {
-      el.onmousedown = (e) => {
-        e.preventDefault();
-        selectProduct(S.products.find((x) => x.id === el.dataset.pid));
-      };
+      el.onclick = () => selectProduct(S.products.find((x) => x.id === el.dataset.pid));
     });
   }
   function selectProduct(p) {
@@ -703,7 +710,6 @@ function setupProductCombo(inputEl, clearEl, listEl, hiddenEl, onChosen) {
     renderList(inputEl.value);
     onChosen(null);
   };
-  inputEl.onblur = () => { setTimeout(() => { listEl.style.display = 'none'; }, 150); };
   clearEl.onclick = () => { inputEl.value = ''; selectProduct(null); inputEl.focus(); };
 }
 
