@@ -1344,6 +1344,12 @@ function openSettings() {
       <button class="btn primary" id="update-stock-btn">Update Stock From Excel</button>
     </div>
 
+    <div class="section-title">Add New Products</div>
+    <div class="card">
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Adds only the new products from your latest cost breakdown that are not already in your Stock. Existing products, sales and expenses are never changed. Selling prices are left at £0 for you to set.</p>
+      <button class="btn primary" id="add-new-products-btn">Add New Products</button>
+    </div>
+
     <div class="section-title">Backup &amp; Data</div>
     <div class="card">
       <p style="font-size:12.5px;color:var(--muted);margin-top:0">Your data syncs automatically to your account, but it's still smart to keep an occasional backup file saved somewhere safe (email, Google Drive) as extra insurance.</p>
@@ -1373,6 +1379,7 @@ function openSettings() {
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
   document.getElementById('import-excel-btn').addEventListener('click', importExcelData);
   document.getElementById('update-stock-btn').addEventListener('click', updateStockFromExcel);
+  document.getElementById('add-new-products-btn').addEventListener('click', addNewProductsOnly);
   document.getElementById('backup-btn').addEventListener('click', downloadBackup);
   document.getElementById('export-sales-btn').addEventListener('click', exportSalesCSV);
   document.getElementById('export-stock-btn').addEventListener('click', exportProductsCSV);
@@ -1456,6 +1463,33 @@ async function updateStockFromExcel() {
     render();
   } catch (err) {
     toast('Could not find the stock update file');
+  }
+}
+
+function normProductName(s) {
+  return String(s || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+async function addNewProductsOnly() {
+  if (!confirm('Add the new products from your latest list? Existing products will not be changed.')) return;
+  toast('Adding new products…');
+  try {
+    const res = await fetch('new-products.json?t=' + Date.now());
+    if (!res.ok) throw new Error('not found');
+    const entries = await res.json();
+    const have = new Set(S.products.map((p) => normProductName(p.name)));
+    const toAdd = [];
+    let skipped = 0;
+    for (const e of entries) {
+      if (have.has(normProductName(e.name))) { skipped++; continue; }
+      toAdd.push({ id: uid(), name: e.name, category: e.category, costPrice: e.costPrice, sellingPrice: e.sellingPrice, stock: e.stock, lowStockThreshold: S.settings.lowStock, createdAt: new Date().toISOString() });
+    }
+    if (toAdd.length) await DB.importAll({ products: toAdd });
+    toast(`Added ${toAdd.length} new product${toAdd.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} already in Stock` : ''}`);
+    closeSheet();
+    await loadAll();
+    render();
+  } catch (err) {
+    toast('Could not add the new products');
   }
 }
 
