@@ -27,7 +27,10 @@ function findVariant(productId, variantId) {
   return { product, variant };
 }
 const PLATFORMS = ["TikTok","Instagram","Facebook","WhatsApp","eBay","Website","Other"];
-const EXPENSE_CATEGORIES = ["Stock Purchase","Shipping & Packaging","Subscriptions","Business Registration","Marketing","Other"];
+const EXPENSE_CATEGORIES = ["Stock Purchase","Stock Shipping (import)","Shipping & Packaging","Subscriptions","Business Registration","Marketing","Loan Repayment","Other"];
+// Money turned into stock (or paying back borrowing), not a running cost: already inside each product's landed cost price.
+const STOCK_EXPENSE_CATEGORIES = ["Stock Purchase","Stock Shipping (import)","Loan Repayment"];
+function isRunningCost(e) { return !STOCK_EXPENSE_CATEGORIES.includes(e.category); }
 const ORDER_STATUSES = ["Pending","Packed","Posted","Delivered","Completed"];
 
 /* ---------- State ---------- */
@@ -37,7 +40,7 @@ const S = {
   sales: [],
   expenses: [],
   customers: [],
-  settings: { currency: '£', businessName: 'My Skincare Books', lowStock: 3 },
+  settings: { currency: '£', businessName: 'My Skincare Books', lowStock: 3, overheadPerItem: 4 },
   salesFilter: 'all',
   salesSearch: '',
   salesPlatformFilter: 'All',
@@ -55,8 +58,10 @@ const S = {
 
 /* ---------- Utilities ---------- */
 function uid() { return DB.uid(); }
-function money(n) { const v = Number(n) || 0; return S.settings.currency + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function todayISO() { return new Date().toISOString().slice(0, 10); }
+function money(n) { const v = Number(n) || 0; return (v < 0 ? '-' : '') + S.settings.currency + Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// Local calendar date (toISOString is UTC, which slips a day during British Summer Time).
+function localISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function todayISO() { return localISO(new Date()); }
 function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -65,7 +70,7 @@ function monthBounds(offset = 0) {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
-  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  return { start: localISO(start), end: localISO(end) };
 }
 function yearBounds() {
   const now = new Date();
@@ -89,6 +94,7 @@ function applyLoadedData(products, sales, expenses, metaRows, customers) {
   if (meta.currency) S.settings.currency = meta.currency;
   if (meta.businessName) S.settings.businessName = meta.businessName;
   if (meta.lowStock != null) S.settings.lowStock = meta.lowStock;
+  if (meta.overheadPerItem != null) S.settings.overheadPerItem = meta.overheadPerItem;
   document.getElementById('business-name').textContent = S.settings.businessName;
 }
 async function loadAll() {
@@ -138,11 +144,11 @@ function render() {
 function renderHome() {
   const m = monthBounds(0);
   const monthSales = S.sales.filter((s) => inRange(s.date, m.start, m.end));
-  const monthExpenses = S.expenses.filter((e) => inRange(e.date, m.start, m.end));
   const revenue = monthSales.reduce((a, s) => a + s.earned, 0);
   const profit = monthSales.reduce((a, s) => a + s.profit, 0);
-  const expTotal = monthExpenses.reduce((a, e) => a + Number(e.amount || 0), 0);
-  const net = profit - expTotal;
+  const o = overheadSummary(m.start, m.end);
+  const expTotal = o.running;
+  const net = profit + o.collected - o.running;
   const pending = S.sales.filter((s) => s.paymentStatus === 'Pending');
   const pendingTotal = pending.reduce((a, s) => a + s.earned, 0);
   const lowStock = allStockItems().filter((it) => it.stock <= Number(it.product.lowStockThreshold != null ? it.product.lowStockThreshold : S.settings.lowStock));
@@ -159,7 +165,7 @@ function renderHome() {
     <div class="stat-grid">
       <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">💰 Revenue</div><div class="value">${money(revenue)}</div></div>
       <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">📈 Profit</div><div class="value green">${money(profit)}</div></div>
-      <div class="stat-box" data-home-nav="expenses" style="cursor:pointer"><div class="label">🧾 Expenses</div><div class="value red">${money(expTotal)}</div></div>
+      <div class="stat-box" data-home-nav="expenses" style="cursor:pointer"><div class="label">🧾 Running Costs</div><div class="value red">${money(expTotal)}</div></div>
       <div class="stat-box" data-home-nav="reports-month" style="cursor:pointer"><div class="label">⚖️ Net Profit</div><div class="value ${net >= 0 ? 'green' : 'red'}">${money(net)}</div></div>
     </div>
 
@@ -563,17 +569,67 @@ function monthlyRevenueTrend(months) {
   }
   return result;
 }
+// The overhead pot: every item's cost price carries a fixed overhead (default £4). Platform fees, the
+// delivery you cover yourself and running costs (ads, subscriptions, packaging…) are paid out of it.
+function overheadSummary(start, end) {
+  const sales = S.sales.filter((s) => inRange(s.date, start, end));
+  const items = sales.reduce((a, s) => a + Number(s.qty || 0), 0);
+  const collected = items * Number(S.settings.overheadPerItem || 0);
+  const fees = sales.reduce((a, s) => a + Number(s.platformFee || 0), 0);
+  const deliveryCovered = sales.reduce((a, s) => a + Number(s.shippingCost || 0) - Number(s.shippingCharged || 0), 0);
+  const expenses = S.expenses.filter((e) => inRange(e.date, start, end));
+  const running = expenses.filter(isRunningCost).reduce((a, e) => a + Number(e.amount || 0), 0);
+  const stock = expenses.filter((e) => !isRunningCost(e)).reduce((a, e) => a + Number(e.amount || 0), 0);
+  const left = collected - fees - deliveryCovered - running;
+  return { items, collected, fees, deliveryCovered, running, stock, left, monthlyCosts: fees + deliveryCovered + running };
+}
+function overheadMonthlyRows(months) {
+  const rows = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const { start, end } = monthBounds(-i);
+    const label = new Date(start + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+    rows.push({ label, ...overheadSummary(start, end) });
+  }
+  return rows;
+}
+function renderOverheadCard(o, allTime, months) {
+  // Keep enough in the pot to cover one average month of costs (last 3 complete months).
+  const full = months.slice(-4, -1).filter((m) => m.items > 0);
+  const reserve = full.length ? full.reduce((a, m) => a + m.monthlyCosts, 0) / full.length : 0;
+  const line = (label, val, cls) => `<div class="row"><div class="row-main"><div class="row-title">${label}</div></div><div class="row-end"><div class="row-amount ${cls || ''}">${money(val)}</div></div></div>`;
+  return `
+    <div class="section-title">Overhead Pot (${money(S.settings.overheadPerItem)} per item)</div>
+    <div class="card">
+      ${line(`Collected (${o.items} items &times; ${money(S.settings.overheadPerItem)})`, o.collected, 'green')}
+      ${line('&minus; Platform fees', o.fees, 'red')}
+      ${line('&minus; Delivery you covered', o.deliveryCovered, 'red')}
+      ${line('&minus; Running costs (ads, subscriptions, packaging…)', o.running, 'red')}
+      ${line('<b>Left in the pot</b>', o.left, o.left >= 0 ? 'green' : 'red')}
+    </div>
+    <div class="card">
+      ${line('<b>Pot balance (all time)</b>', allTime.left, allTime.left >= 0 ? 'green' : 'red')}
+      ${line('Keep at least (1 month of costs)', reserve)}
+      <div class="row-sub" style="padding:6px 0 0">${allTime.left >= reserve ? 'Your pot covers a month of costs.' : `Short by ${money(reserve - allTime.left)}. Go easy on ad spend until the pot builds up.`}</div>
+    </div>
+    <div class="card">
+      <h3>Pot by month</h3>
+      <table class="mini-table"><thead><tr><th>Month</th><th>In</th><th>Fees</th><th>Delivery</th><th>Running</th><th>Left</th></tr></thead><tbody>
+      ${months.map((m) => `<tr><td>${m.label}</td><td>${money(m.collected)}</td><td>${money(m.fees)}</td><td>${money(m.deliveryCovered)}</td><td>${money(m.running)}</td><td class="${m.left >= 0 ? 'green' : 'red'}">${money(m.left)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+}
+
 function renderReports() {
   const { start, end } = reportRangeBounds();
   const sales = S.sales.filter((s) => inRange(s.date, start, end));
-  const expenses = S.expenses.filter((e) => inRange(e.date, start, end));
   const revenue = sales.reduce((a, s) => a + s.earned, 0);
   const productCost = sales.reduce((a, s) => a + (Number(s.productCost) * Number(s.qty)), 0);
   const fees = sales.reduce((a, s) => a + Number(s.platformFee || 0), 0);
   const shipCost = sales.reduce((a, s) => a + Number(s.shippingCost || 0), 0);
   const profit = sales.reduce((a, s) => a + s.profit, 0);
-  const expTotal = expenses.reduce((a, e) => a + Number(e.amount || 0), 0);
-  const net = profit - expTotal;
+  const o = overheadSummary(start, end);
+  // Sales profit already has the overhead taken out of each item's cost, so add it back and pay running costs from it.
+  const net = profit + o.collected - o.running;
 
   const byPlatform = {};
   sales.forEach((s) => { byPlatform[s.platform] = byPlatform[s.platform] || { revenue: 0, profit: 0, count: 0 }; byPlatform[s.platform].revenue += s.earned; byPlatform[s.platform].profit += s.profit; byPlatform[s.platform].count += 1; });
@@ -594,9 +650,14 @@ function renderReports() {
       <div class="stat-box"><div class="label">Product + Ship Cost</div><div class="value">${money(productCost + shipCost)}</div></div>
       <div class="stat-box"><div class="label">Platform Fees</div><div class="value">${money(fees)}</div></div>
       <div class="stat-box"><div class="label">Sales Profit</div><div class="value green">${money(profit)}</div></div>
-      <div class="stat-box"><div class="label">Expenses</div><div class="value red">${money(expTotal)}</div></div>
+      <div class="stat-box"><div class="label">Running Costs</div><div class="value red">${money(o.running)}</div></div>
       <div class="stat-box"><div class="label">Net Profit</div><div class="value ${net>=0?'green':'red'}">${money(net)}</div></div>
+      <div class="stat-box"><div class="label">Spent On Stock</div><div class="value">${money(o.stock)}</div></div>
+      <div class="stat-box"><div class="label">Overhead Pot Left</div><div class="value ${o.left>=0?'green':'red'}">${money(o.left)}</div></div>
     </div>
+    <p style="font-size:12px;color:var(--muted);margin:4px 2px 0">Net profit leaves out stock purchases, import shipping and loan repayments: that money is sitting on your shelves as stock.</p>
+
+    ${renderOverheadCard(o, overheadSummary('0000-01-01', '9999-12-31'), overheadMonthlyRows(6))}
 
     <div class="chart-card">
       <h3>Revenue Trend (Last 6 Months)</h3>
@@ -1330,7 +1391,14 @@ function openSettings() {
       <option value="₦" ${S.settings.currency==='₦'?'selected':''}>&#8358; Naira</option>
     </select>
     <label>Default low stock alert level</label><input type="number" id="s-lowstock" value="${S.settings.lowStock}">
+    <label>Overhead added to each item's cost</label><input type="number" step="0.01" id="s-overhead" value="${S.settings.overheadPerItem}">
     <button class="btn primary" id="save-settings-btn">Save Settings</button>
+
+    <div class="section-title">Update Cost Prices From Cost Sheet</div>
+    <div class="card">
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Pick your landed cost breakdown (.xlsx). The app reads each product's "Cost per 1 + overhead" (supplier price + Nigeria delivery + UK shipping + overhead) and shows you the matches to check before anything changes. Past sales keep the cost they were recorded with.</p>
+      <input type="file" id="cost-sheet-file" accept=".xlsx,.xls">
+    </div>
 
     <div class="section-title">Restore My Data</div>
     <div class="card">
@@ -1386,6 +1454,7 @@ function openSettings() {
   document.getElementById('logout-btn').addEventListener('click', () => { closeSheet(); window.FB.signOutUser(); });
   document.getElementById('export-expenses-btn').addEventListener('click', exportExpensesCSV);
   document.getElementById('restore-file').addEventListener('change', restoreBackup);
+  document.getElementById('cost-sheet-file').addEventListener('change', importCostSheet);
   document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
 }
 
@@ -1393,9 +1462,11 @@ async function saveSettings() {
   S.settings.businessName = document.getElementById('s-bizname').value.trim() || 'My Skincare Books';
   S.settings.currency = document.getElementById('s-currency').value;
   S.settings.lowStock = Number(document.getElementById('s-lowstock').value) || 0;
+  S.settings.overheadPerItem = Number(document.getElementById('s-overhead').value) || 0;
   await saveMeta('businessName', S.settings.businessName);
   await saveMeta('currency', S.settings.currency);
   await saveMeta('lowStock', S.settings.lowStock);
+  await saveMeta('overheadPerItem', S.settings.overheadPerItem);
   document.getElementById('business-name').textContent = S.settings.businessName;
   closeSheet();
   toast('Settings saved');
@@ -1491,6 +1562,117 @@ async function addNewProductsOnly() {
   } catch (err) {
     toast('Could not add the new products');
   }
+}
+
+/* ---------- Cost sheet (landed cost) import ---------- */
+function loadSheetJs() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = () => reject(new Error('Could not load the Excel reader. Check your internet connection.'));
+    document.head.appendChild(s);
+  });
+}
+// Reads the "Landed Cost Breakdown" layout: an inputs block (overhead per item) then a table whose header
+// row has "Product" and "Cost per 1 + overhead". Returns { overhead, rows: [{ name, cost, price }] }.
+function parseCostSheet(XLSX, wb) {
+  const grid = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false });
+  const text = (v) => String(v == null ? '' : v).trim().toLowerCase();
+  let overhead = null;
+  const ohRow = grid.find((r) => text(r[0]).startsWith('overhead'));
+  if (ohRow) { const v = ohRow.find((c, i) => i > 0 && typeof c === 'number'); if (v != null) overhead = v; }
+  const hIdx = grid.findIndex((r) => r.some((c) => text(c) === 'product') && r.some((c) => text(c).startsWith('cost per 1 + overhead')));
+  if (hIdx < 0) throw new Error('Could not find the "Product" and "Cost per 1 + overhead" columns in this sheet.');
+  const header = grid[hIdx].map(text);
+  const col = (pred) => header.findIndex(pred);
+  const cName = col((h) => h === 'product');
+  const cCost = col((h) => h.startsWith('cost per 1 + overhead'));
+  const cPrice = col((h) => h.startsWith('my selling price'));
+  const rows = grid.slice(hIdx + 1)
+    .filter((r) => r[cName] && typeof r[cCost] === 'number' && !/^total\b/i.test(String(r[cName]).trim()))
+    .map((r) => ({ name: String(r[cName]).trim(), cost: Math.round(r[cCost] * 100) / 100, price: typeof r[cPrice] === 'number' ? r[cPrice] : null }));
+  return { overhead, rows };
+}
+// Words that say what kind of product it is: a lotion must never be matched to a serum or face cream.
+const PRODUCT_TYPE_WORDS = ['lotion','serum','cream','shower','gel','soap','oil','wash','toner','scrub','mask','milk','bath','rollon','roll','deo','cleanser','sunscreen'];
+// Words that don't identify a brand, so sharing only these (e.g. "body lotion") is not a match.
+const GENERIC_PRODUCT_WORDS = new Set([...PRODUCT_TYPE_WORDS, 'body', 'face', 'new', 'one', 'only', 'mixed', 'and', 'the', 'of']);
+function bestProductMatch(name) {
+  const tokens = (s) => normProductName(s).split(' ').filter(Boolean);
+  // "advance" and "advanced" count as the same word
+  const same = (x, y) => x === y || (Math.min(x.length, y.length) >= 5 && (x.startsWith(y) || y.startsWith(x)));
+  const types = (list) => PRODUCT_TYPE_WORDS.filter((w) => list.includes(w));
+  const a = tokens(name);
+  const aTypes = types(a);
+  let best = null, bestScore = 0, bestShared = 0;
+  for (const p of S.products) {
+    const b = tokens(p.name);
+    const bTypes = types(b);
+    if (aTypes.length && bTypes.length && !aTypes.some((t) => bTypes.includes(t))) continue;
+    const sharedWords = a.filter((t) => b.some((u) => same(t, u)));
+    if (!sharedWords.some((t) => !GENERIC_PRODUCT_WORDS.has(t))) continue;
+    const score = sharedWords.length / Math.max(a.length, b.length, 1);
+    if (score > bestScore || (score === bestScore && sharedWords.length > bestShared)) { best = p; bestScore = score; bestShared = sharedWords.length; }
+  }
+  return bestScore >= 0.5 ? best : null;
+}
+async function importCostSheet(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let sheet;
+  try {
+    const XLSX = await loadSheetJs();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    sheet = parseCostSheet(XLSX, wb);
+  } catch (err) { toast(err.message || 'Could not read that file'); return; }
+  if (!sheet.rows.length) { toast('No products found in the cost sheet'); return; }
+  const options = (selId) => `<option value="">— skip —</option>` + S.products.map((p) => `<option value="${p.id}" ${p.id === selId ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  openSheet('Update Cost Prices', `
+    <p style="font-size:12.5px;color:var(--muted);margin-top:0">Check each match. Choose "skip" for anything that isn't right. Only cost prices change.</p>
+    ${sheet.overhead != null && Number(sheet.overhead) !== Number(S.settings.overheadPerItem) ? `<label class="check-row"><input type="checkbox" id="cs-overhead" checked> Set overhead per item to ${money(sheet.overhead)} (now ${money(S.settings.overheadPerItem)})</label>` : ''}
+    ${sheet.rows.map((r, i) => {
+      const m = bestProductMatch(r.name);
+      const profit = r.price != null ? r.price - r.cost : null;
+      return `<div class="card" style="padding:10px">
+        <div class="row-title">${esc(r.name)}</div>
+        <div class="row-sub">New cost ${money(r.cost)}${r.price != null ? ` · sells ${money(r.price)} · profit ${money(profit)}${profit < r.cost * 0.25 ? ' ⚠️ low' : ''}` : ''}</div>
+        <select data-cs-row="${i}">${options(m && m.id)}</select>
+        <div class="row-sub" data-cs-old="${i}"></div>
+      </div>`;
+    }).join('')}
+    <button class="btn primary" id="cs-apply-btn">Update Cost Prices</button>
+  `);
+  const wasText = (p, r) => {
+    if (!p) return '';
+    const jump = Number(p.costPrice) > 0 && Math.abs(r.cost - p.costPrice) / p.costPrice > 0.4;
+    return `Was ${money(p.costPrice)}${jump ? ' ⚠️ big change, check this is the same product' : ''}`;
+  };
+  document.querySelectorAll('[data-cs-row]').forEach((sel) => {
+    const show = () => {
+      const p = S.products.find((x) => x.id === sel.value);
+      document.querySelector(`[data-cs-old="${sel.dataset.csRow}"]`).textContent = wasText(p, sheet.rows[Number(sel.dataset.csRow)]);
+    };
+    show();
+    sel.addEventListener('change', show);
+  });
+  document.getElementById('cs-apply-btn').addEventListener('click', async () => {
+    const changed = [];
+    document.querySelectorAll('[data-cs-row]').forEach((sel) => {
+      const p = S.products.find((x) => x.id === sel.value);
+      const r = sheet.rows[Number(sel.dataset.csRow)];
+      if (p && Number(p.costPrice) !== r.cost) changed.push({ ...p, costPrice: r.cost });
+    });
+    const ohBox = document.getElementById('cs-overhead');
+    if (ohBox && ohBox.checked) { S.settings.overheadPerItem = Number(sheet.overhead); await saveMeta('overheadPerItem', S.settings.overheadPerItem); }
+    if (changed.length) await DB.importAll({ products: changed });
+    closeSheet();
+    toast(`Updated ${changed.length} cost price${changed.length === 1 ? '' : 's'}`);
+    await loadAll();
+    render();
+  });
 }
 
 function restoreBackup(e) {
