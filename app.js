@@ -32,6 +32,11 @@ const EXPENSE_CATEGORIES = ["Stock Purchase","Stock Shipping (import)","Shipping
 const STOCK_EXPENSE_CATEGORIES = ["Stock Purchase","Stock Shipping (import)","Loan Repayment"];
 function isRunningCost(e) { return !STOCK_EXPENSE_CATEGORIES.includes(e.category); }
 const ORDER_STATUSES = ["Pending","Packed","Posted","Delivered","Completed"];
+// Same choices as the "How did you hear about us?" question at website checkout.
+const SOURCES = ["Facebook / Instagram ad","TikTok","Instagram page","WhatsApp","Friend or family","Google search","Returning customer","Other"];
+function sourceSelectHtml(selected) {
+  return `<label>How they found us</label><select id="f-source"><option value="">Not asked</option>${SOURCES.map((s) => `<option ${selected === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>`;
+}
 
 /* ---------- State ---------- */
 const S = {
@@ -634,6 +639,16 @@ function renderReports() {
   const byPlatform = {};
   sales.forEach((s) => { byPlatform[s.platform] = byPlatform[s.platform] || { revenue: 0, profit: 0, count: 0 }; byPlatform[s.platform].revenue += s.earned; byPlatform[s.platform].profit += s.profit; byPlatform[s.platform].count += 1; });
 
+  // One order can be several sale lines, so count distinct orders per source.
+  const bySource = {};
+  sales.forEach((s) => {
+    const k = s.source || 'Not asked';
+    bySource[k] = bySource[k] || { orders: new Set(), revenue: 0, profit: 0 };
+    bySource[k].orders.add(`${s.date}|${s.orderNo || ''}|${s.customer || ''}`);
+    bySource[k].revenue += s.earned; bySource[k].profit += s.profit;
+  });
+  const sourceRows = Object.entries(bySource).sort((a, b) => b[1].revenue - a[1].revenue);
+
   const byProduct = {};
   sales.forEach((s) => { byProduct[s.productName] = byProduct[s.productName] || { qty: 0, profit: 0 }; byProduct[s.productName].qty += Number(s.qty); byProduct[s.productName].profit += s.profit; });
   const topProducts = Object.entries(byProduct).sort((a, b) => b[1].profit - a[1].profit).slice(0, 8);
@@ -672,6 +687,11 @@ function renderReports() {
     <div class="section-title">By Platform</div>
     <div class="card">${Object.keys(byPlatform).length ? Object.entries(byPlatform).map(([k, v]) => `
       <div class="row"><div class="row-main"><div class="row-title">${esc(k)}</div><div class="row-sub">${v.count} sale(s)</div></div>
+      <div class="row-end"><div class="row-amount">${money(v.revenue)}</div><div class="row-sub" style="color:var(--green)">profit ${money(v.profit)}</div></div></div>`).join('') : emptyState('No sales in this range', '')}</div>
+
+    <div class="section-title">How Customers Found Us</div>
+    <div class="card">${sourceRows.length ? sourceRows.map(([k, v]) => `
+      <div class="row"><div class="row-main"><div class="row-title">${esc(k)}</div><div class="row-sub">${v.orders.size} order(s)</div></div>
       <div class="row-end"><div class="row-amount">${money(v.revenue)}</div><div class="row-sub" style="color:var(--green)">profit ${money(v.profit)}</div></div></div>`).join('') : emptyState('No sales in this range', '')}</div>
 
     <div class="section-title">Top Products (by profit)</div>
@@ -787,6 +807,7 @@ function openSaleForm(saleId) {
       <datalist id="customer-datalist">${S.customers.map((c) => `<option value="${esc(c.name)}">`).join('')}</datalist></div>
       <div><label>Order No (optional)</label><input type="text" id="f-orderno" value="${editing ? esc(editing.orderNo || '') : ''}"></div>
     </div>
+    ${sourceSelectHtml(editing ? editing.source : '')}
     <label>Product</label>
     <div class="combo-wrap">
       <input type="text" id="f-product-search" class="combo-input" placeholder="Search products..." autocomplete="off" value="${editingProduct ? esc(editingProduct.name) : ''}">
@@ -905,6 +926,7 @@ function openNewOrderForm(prefillCustomer) {
       <datalist id="customer-datalist">${S.customers.map((c) => `<option value="${esc(c.name)}">`).join('')}</datalist></div>
       <div><label>Order No (optional)</label><input type="text" id="f-orderno"></div>
     </div>
+    ${sourceSelectHtml('')}
 
     <div class="section-title">Items</div>
     <div id="order-items">${orderItemHtml(0)}</div>
@@ -1041,6 +1063,7 @@ async function saveNewOrder() {
   const platform = document.getElementById('f-platform').value;
   const customer = document.getElementById('f-customer').value.trim();
   const orderNo = document.getElementById('f-orderno').value.trim();
+  const source = document.getElementById('f-source').value;
   const shippingCharged = Number(document.getElementById('f-shipcharged').value) || 0;
   const platformFee = Number(document.getElementById('f-fee').value) || 0;
   const shippingCost = Number(document.getElementById('f-shipcost').value) || 0;
@@ -1055,7 +1078,7 @@ async function saveNewOrder() {
     const earned = (it.sellingPrice * it.qty) + (isFirst ? shippingCharged - platformFee - shippingCost : 0);
     const profit = earned - (it.productCost * it.qty);
     const sale = {
-      id: uid(), date, platform, customer, orderNo,
+      id: uid(), date, platform, customer, orderNo, source,
       productId: it.productId, variantId: it.variantId, productName: it.productName, qty: it.qty,
       sellingPrice: it.sellingPrice,
       shippingCharged: isFirst ? shippingCharged : 0,
@@ -1152,6 +1175,7 @@ async function saveSale(editing) {
     platform: document.getElementById('f-platform').value,
     customer: document.getElementById('f-customer').value.trim(),
     orderNo: document.getElementById('f-orderno').value.trim(),
+    source: document.getElementById('f-source').value,
     productId, variantId, productName, qty, sellingPrice, shippingCharged, platformFee, productCost, shippingCost, earned, profit,
     paymentStatus: document.getElementById('f-status').value,
     paymentDate: document.getElementById('f-paydate').value || '',
@@ -1698,8 +1722,8 @@ function csvFromRows(headers, rows) {
   return [headers, ...rows].map((r) => r.map((v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
 }
 function exportSalesCSV() {
-  const headers = ['Date','Platform','Customer','Order No','Product','Qty','Selling Price','Shipping Charged','Platform Fee','Product Cost','Shipping Cost','Earned','Profit','Payment Status','Payment Date','Order Status','Notes'];
-  const rows = S.sales.map((s) => [s.date, s.platform, s.customer, s.orderNo, s.productName, s.qty, s.sellingPrice, s.shippingCharged, s.platformFee, s.productCost, s.shippingCost, s.earned.toFixed(2), s.profit.toFixed(2), s.paymentStatus, s.paymentDate, s.orderStatus || 'Pending', s.notes]);
+  const headers = ['Date','Platform','Customer','Order No','Product','Qty','Selling Price','Shipping Charged','Platform Fee','Product Cost','Shipping Cost','Earned','Profit','Payment Status','Payment Date','Order Status','Notes','How They Found Us'];
+  const rows = S.sales.map((s) => [s.date, s.platform, s.customer, s.orderNo, s.productName, s.qty, s.sellingPrice, s.shippingCharged, s.platformFee, s.productCost, s.shippingCost, s.earned.toFixed(2), s.profit.toFixed(2), s.paymentStatus, s.paymentDate, s.orderStatus || 'Pending', s.notes, s.source || '']);
   downloadFile(`sales-export-${todayISO()}.csv`, csvFromRows(headers, rows), 'text/csv');
   toast('Sales exported');
 }
